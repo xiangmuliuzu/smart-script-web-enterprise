@@ -96,7 +96,10 @@ test('logout calls the server and always removes local session, preserving the o
   assert.equal(getToken(), ''); assert.equal(storage.get('unrelated'), 'keep')
 })
 test('login redirects only to implemented local pages', () => {
-  for (const raw of [null, '//evil.test', 'https://evil.test', '/login', '/pc/user', '/session/../login', '/\\evil.test', '/%5cevil.test']) assert.equal(safeRedirect(raw), '/session')
+  // 原型最终态只有 /dashboard 一个主体路由，其余入口都是浮层。
+  for (const raw of [null, '//evil.test', 'https://evil.test', '/login', '/pc/user', '/session/../login', '/\\evil.test', '/%5cevil.test', '/discover', '/library', '/trade']) assert.equal(safeRedirect(raw), '/session')
+  assert.equal(safeRedirect('/dashboard'), '/dashboard')
+  assert.equal(safeRedirect('/dashboard?tab=1#ok'), '/dashboard?tab=1#ok')
   assert.equal(safeRedirect('/session?tab=1#ok'), '/session?tab=1#ok')
   assert.equal(safeRedirect('/session-check'), '/session-check')
 })

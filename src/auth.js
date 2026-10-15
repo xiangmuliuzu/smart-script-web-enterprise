@@ -6,12 +6,15 @@ export const clearSession = () => localStorage.removeItem(portal.tokenKey)
 export function isAuthFailure(error) {
   return error?.status === 401 || [401, 40100, 40301].includes(error?.code)
 }
+// 已实现的主体路由白名单，新增页面必须同步登记（README 的回跳约定）。
+// 原型最终态只剩采购工作台一个视图，其余入口都是浮层，所以白名单只登记这一个页面。
+const IMPLEMENTED = ['/session', '/session-check', '/dashboard']
 export function safeRedirect(raw) {
   if (typeof raw !== 'string' || raw.includes('\\')) return '/session'
   try {
     const url = new URL(raw, 'https://portal.invalid')
     if (!raw.startsWith('/') || raw.startsWith('//') || url.origin !== 'https://portal.invalid') return '/session'
-    return ['/session', '/session-check'].includes(url.pathname) ? url.pathname + url.search + url.hash : '/session'
+    return IMPLEMENTED.includes(url.pathname) ? url.pathname + url.search + url.hash : '/session'
   } catch { return '/session' }
 }
 export function assertUser(user) {
@@ -25,9 +28,11 @@ export function assertUser(user) {
 export async function request(path, { method = 'GET', body, authenticated = true } = {}) {
   const token = authenticated ? getToken() : ''
   const headers = { Accept: 'application/json' }
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  // 头像上传走 FormData，不能设置 Content-Type（边界由浏览器补），上传耗时也更长。
+  const multipart = typeof FormData !== 'undefined' && body instanceof FormData
+  if (body !== undefined && !multipart) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = 'Bearer ' + token
-  const response = await fetch(BASE_API + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15000) })
+  const response = await fetch(BASE_API + path, { method, headers, body: body === undefined ? undefined : multipart ? body : JSON.stringify(body), signal: AbortSignal.timeout(multipart ? 60000 : 15000) })
   const result = await response.json().catch(() => null)
   if (!response.ok || ![200, 0].includes(result?.code)) {
     const error = new Error(result?.msg || result?.message || '请求失败，请稍后重试')
