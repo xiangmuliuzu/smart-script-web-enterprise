@@ -14,7 +14,7 @@
                 <template v-if="mode === 'contract'">
                   <dt>合同编号</dt><dd>{{ order?.orderNo || '待生成' }}</dd>
                   <dt>关联作品</dt><dd>{{ order?.workTitle || '—' }}</dd>
-                  <dt>合同金额</dt><dd class="money">{{ orderMoney(order?.amount) }}</dd>
+                  <dt>合同金额</dt><dd class="money">{{ money(order?.amount) }}</dd>
                   <dt>授权期限</dt><dd>待确认</dd>
                   <dt>授权方式</dt><dd>{{ licenseLabel(order?.licenseType) }}</dd>
                   <dt>合同状态</dt><dd><span class="tag" :class="orderTone">{{ orderLabel }}</span></dd>
@@ -24,7 +24,7 @@
                   <dt>关联作品</dt><dd>{{ order?.workTitle || '—' }}</dd>
                   <dt>作者</dt><dd>{{ order?.sellerName || '待确认' }}</dd>
                   <dt>授权方式</dt><dd>{{ licenseLabel(order?.licenseType) }}</dd>
-                  <dt>订单金额</dt><dd class="money">{{ orderMoney(order?.amount) }}</dd>
+                  <dt>订单金额</dt><dd class="money">{{ money(order?.amount) }}</dd>
                   <dt>当前状态</dt><dd><span class="tag" :class="orderTone">{{ orderLabel }}</span></dd>
                   <dt>交易日期</dt><dd>{{ dayText(order?.createdAt) }}</dd>
                 </template>
@@ -56,7 +56,7 @@
 <script setup>
 import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { NOT_OPEN_NOTE, dayText, licenseLabel, orderMoney, orderStatus, state } from '../utils/enterprise.js'
+import { NOT_OPEN_NOTE, dayText, licenseLabel, money, orderStatus, state } from '../utils/enterprise.js'
 
 const props = defineProps({ open: Boolean, mode: { type: String, default: 'order' }, order: { type: Object, default: null } })
 defineEmits(['close', 'contact'])

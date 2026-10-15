@@ -9,9 +9,9 @@ export const qs = params => {
   return search.toString()
 }
 
-export const money = value => '¥' + Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
-// 后端订单接口把 totalAmount（元）翻了 100 倍下发，其它金额字段都是元。
-export const orderMoney = fen => money(Number(fen || 0) / 100)
+// 交易域金额一律以「分」下发：报价 price、询盘 budget、订单 amount 都是分
+// （后端在 controller 里把库中的元 ×100，见 AppTradeQuoteController.yuanToFen）。
+export const money = fen => '¥' + (Number(fen || 0) / 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 
 export const licenseLabels = { exclusive: '独家授权', non_exclusive: '非独家授权', adaptation: '改编授权' }
 export const licenseLabel = value => licenseLabels[value] || '授权方式待确认'

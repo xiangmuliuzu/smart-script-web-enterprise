@@ -102,7 +102,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import LoadState from '../components/LoadState.vue'
 import { usePortal } from '../utils/portal.js'
-import { avatarText, inquiryProgressText, licenseLabel, money, orderMoney, relativeText, state, inquiryStatus, orderStatus } from '../utils/enterprise.js'
+import { avatarText, inquiryProgressText, licenseLabel, money, relativeText, state, inquiryStatus, orderStatus } from '../utils/enterprise.js'
 defineEmits(['open-work', 'open-trade'])
 const { api, handleError } = usePortal()
 const pending = ref(true)
@@ -119,7 +119,7 @@ function buildCards() {
   const cards = []
   for (const order of orders.value) {
     const work = works.value[order.workId] || {}
-    const amount = orderMoney(order.amount)
+    const amount = money(order.amount)
     cards.push({
       key: 'order-' + order.orderId, workId: order.workId, title: order.workTitle || '作品 #' + order.workId,
       mark: avatarText(order.workTitle),
@@ -176,7 +176,7 @@ const todos = computed(() => {
     items.push({ key: 'quote-' + quote.quoteId, tab: 'inquiry', urgent: true, title: '确认《' + (quote.workTitle || quote.inquiryNo || '作品') + '》报价', note: licenseLabel(quote.licenseType) + ' · ' + money(quote.price) })
   }
   for (const order of orders.value.filter(o => o.status === 'confirmed').slice(0, 2)) {
-    items.push({ key: 'order-' + order.orderId, tab: 'order', urgent: false, title: '跟进《' + (order.workTitle || order.orderNo) + '》订单', note: orderMoney(order.amount) + ' · ' + state(orderStatus, order.status).label })
+    items.push({ key: 'order-' + order.orderId, tab: 'order', urgent: false, title: '跟进《' + (order.workTitle || order.orderNo) + '》订单', note: money(order.amount) + ' · ' + state(orderStatus, order.status).label })
   }
   return items.slice(0, 4)
 })

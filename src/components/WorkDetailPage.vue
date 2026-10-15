@@ -66,7 +66,7 @@
                 <dt>合同编号</dt>
                 <dd>{{ order?.orderNo || '待生成' }}</dd>
                 <dt>合同金额</dt>
-                <dd class="money">{{ orderMoney(purchase?.amount) }}</dd>
+                <dd class="money">{{ money(purchase?.amount) }}</dd>
                 <dt>授权期限</dt>
                 <dd>待确认</dd>
                 <dt>合同状态</dt>
@@ -93,7 +93,7 @@
 import { computed, ref, watch } from 'vue'
 import LoadState from './LoadState.vue'
 import { usePortal } from '../utils/portal.js'
-import { avatarText, dayText, episodeText, genreText, licenseLabel, orderMoney, orderStatus, progressIndex as stepIndex, state } from '../utils/enterprise.js'
+import { avatarText, dayText, episodeText, genreText, licenseLabel, money, orderStatus, progressIndex as stepIndex, state } from '../utils/enterprise.js'
 
 const props = defineProps({ open: Boolean, workId: { type: [Number, String], default: null }, purchase: { type: Object, default: null }, status: { type: String, default: '购买中' } })
 defineEmits(['close', 'preview', 'contact', 'open-contract'])
