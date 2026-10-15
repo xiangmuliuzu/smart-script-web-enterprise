@@ -1,0 +1,65 @@
+/* 把原型主题变量桥接到 Element Plus，并补齐 Enterprise 布局需要的少量工具类。 */
+:root {
+  --el-color-primary: var(--brand);
+  --el-color-primary-light-3: #4f8a80;
+  --el-color-primary-light-5: #86aea6;
+  --el-color-primary-light-7: #bcd3ce;
+  --el-color-primary-light-8: #d5e4e1;
+  --el-color-primary-light-9: var(--brandsoft);
+  --el-color-primary-dark-2: #1f514d;
+  --el-color-danger: var(--red);
+  --el-color-warning: var(--gold);
+  --el-color-info: var(--blue);
+  --el-font-family: var(--sans);
+  --el-border-radius-base: 5px;
+  --el-border-color: var(--line);
+  --el-text-color-primary: var(--ink);
+  --el-bg-color: var(--surface);
+}
+
+button:disabled { cursor: not-allowed; opacity: .48; }
+a { color: var(--brand); }
+
+/* 原型用 .work-avatar 的 flex 居中实现封面字，这里需要补一份给 <span> 用。 */
+.work-avatar { display: grid; place-items: center; background: var(--brandsoft); color: var(--brand); font: 600 20px var(--serif); border-radius: 4px; flex: none; }
+
+/* 抽屉/弹层由 Vue 控制可见性，沿用原型的 [data-open] 契约。 */
+.drawer-bg[data-open="true"], .modal-bg[data-open="true"] { display: block; }
+.drawer-bg, .modal-bg { display: none; }
+
+/* 加载/错误/空状态：原型没有对应样式，按原型变量补一套最小实现。 */
+.load-state { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+.load-state p { margin: 0 0 14px; overflow-wrap: anywhere; }
+.loading-mark { display: inline-block; margin-right: 9px; width: 13px; height: 13px; border: 1px solid var(--line); border-top-color: var(--brand); border-radius: 50%; animation: portal-rotate 1s linear infinite; }
+@keyframes portal-rotate { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .loading-mark { animation: none; } }
+
+/* 顶栏账号菜单由 Vue 渲染，data-open 契约与原型一致。 */
+.account-menu { position: relative; }
+.account-dropdown[data-open="true"] { display: grid; }
+
+/* 表格与列表里的金额、次要说明。 */
+.money { color: var(--gold); font-weight: 600; }
+
+/* 视图切换时不再需要原型的锚点滚动间距，但保留分节留白。
+   原型把 main 限制在 1480px 并居中，宽屏下两侧留白；创作者端是占满整宽，这里按用户要求与创作者端对齐。 */
+.portal-main { min-width: 0; max-width: none; margin: 0; }
+
+/* 原型用汉字做圆标；有真实头像时显示图片。
+   圆形容器统一 overflow:hidden，图片加载失败时溢出的破图图标与 alt 文案也会被裁掉。 */
+.company-mark, .profile-avatar { overflow: hidden; }
+.company-mark img, .profile-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+
+/* 「更换头像」上传控件：复用原型 .btn 外观，把 file input 透明覆盖在按钮上。 */
+.upload-control { position: relative; overflow: hidden; cursor: pointer; display: inline-flex; }
+.upload-control input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; cursor: pointer; }
+.upload-control:focus-within { outline: 2px solid var(--brand2); outline-offset: 2px; }
+.upload-control span { pointer-events: none; }
+
+/* 消息抽屉按创作者端的消息入口对齐：整高贴右、无圆角、430px。
+   原型 css 里 #drawer-messages .drawer 是遗留的 780px 浮动面板几何，这里覆盖掉。 */
+#drawer-messages .drawer { top: 0; bottom: 0; height: 100%; width: min(430px, 94vw); border-radius: 0; box-shadow: -10px 0 30px #1725231f; }
+@media (max-width: 720px) { #drawer-messages .drawer { top: 0; bottom: 0; width: 94vw; } }
+
+/* 表单校验/提交失败提示：原型没有这个类，用已声明的红色变量补一条。 */
+.form-error { margin: 14px 0 0; padding: 9px 11px; border-left: 3px solid var(--red); background: var(--redsoft); color: #8a3a33; font-size: 12px; line-height: 1.6; border-radius: 3px; }
