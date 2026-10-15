@@ -50,7 +50,7 @@
             <ul v-else class="side-list">
               <li v-for="order in orders" :key="order.orderId">
                 <b>{{ order.orderNo }} · 《{{ order.workTitle || order.workId }}》</b>
-                <span>{{ orderMoney(order.amount) }} · {{ licenseLabel(order.licenseType) }} · {{ state(orderStatus, order.status).label }}</span>
+                <span>{{ money(order.amount) }} · {{ licenseLabel(order.licenseType) }} · {{ state(orderStatus, order.status).label }}</span>
                 <button class="btn ghost small" style="margin-top:8px" @click="$emit('open-order', order)">查看订单</button>
               </li>
             </ul>
@@ -68,7 +68,7 @@
             <ul v-else class="side-list">
               <li v-for="order in orders" :key="order.orderId" class="interactive-side-item" tabindex="0">
                 <b>{{ order.orderNo }} · 《{{ order.workTitle || order.workId }}》</b>
-                <span>合同金额：{{ orderMoney(order.amount) }} · {{ licenseLabel(order.licenseType) }}</span>
+                <span>合同金额：{{ money(order.amount) }} · {{ licenseLabel(order.licenseType) }}</span>
                 <span>授权期限：待确认</span>
                 <span><span class="tag" :class="state(orderStatus, order.status).tone">{{ state(orderStatus, order.status).label }}</span> {{ NOT_OPEN }}</span>
                 <button class="btn ghost small" style="margin-top:8px" @click="$emit('open-contract', order)">查看合同详情</button>
@@ -85,7 +85,7 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import LoadState from './LoadState.vue'
 import { usePortal } from '../utils/portal.js'
-import { NOT_OPEN, NOT_OPEN_NOTE, licenseLabel, money, orderMoney, orderStatus, state } from '../utils/enterprise.js'
+import { NOT_OPEN, NOT_OPEN_NOTE, licenseLabel, money, orderStatus, state } from '../utils/enterprise.js'
 
 const props = defineProps({ open: Boolean, panel: { type: String, default: 'inquiry' } })
 defineEmits(['close', 'open-order', 'open-contract', 'open-conversation', 'read'])
@@ -128,13 +128,13 @@ async function load() {
     if (!handleError(failure, { silent: true })) error.value = failure.message || '加载交易数据失败'
   } finally { pending.value = false }
 }
-// 买方议价：POST /counter-offer，后端要求 price 为元。
+// 买方议价：POST /counter-offer。界面按「元」输入，交易域接口已统一以「分」收发。
 async function submitOffer(inquiry) {
   const price = Number(offers.value[inquiry.inquiryId])
   if (!price || price <= 0) { ElMessage.warning('请输入有效的还价金额'); return }
   busy.value = inquiry.inquiryId
   try {
-    await api.value.counterOffer({ inquiryId: inquiry.inquiryId, price, licenseType: inquiry.licenseType, description: offers.value[inquiry.inquiryId] })
+    await api.value.counterOffer({ inquiryId: inquiry.inquiryId, price: Math.round(price * 100), licenseType: inquiry.licenseType, description: offers.value[inquiry.inquiryId] })
     ElMessage.success('还价已提交，等待作者确认')
     offers.value[inquiry.inquiryId] = ''
     await load()
