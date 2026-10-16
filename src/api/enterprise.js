@@ -88,5 +88,11 @@ export const uploadRealNameMaterial = file => {
 }
 // 驳回后重提走 /resubmit；两条路径共享同一状态机（PENDING/APPROVED 均返回 409）。
 export const submitRealName = (form, resubmit = false) => data('/api/v1/users/me/real-name' + (resubmit ? '/resubmit' : ''), { method: 'POST', body: form })
+/* ---------------- 账号安全 ---------------- */
+// 与创作者端同端点：改密后需重新登录（无状态令牌不会自动失效）。
+export const changePassword = form => data('/api/v1/auth/password/change', { method: 'POST', body: form })
+// 换绑手机四步：old/send → old/verify（换取 stepUpToken）→ new/send → confirm。
+export const phoneChange = (step, body) => data('/api/v1/users/me/phone/change/' + step, { method: 'POST', body })
+
 export const listFeedback = async () => asList(await data('/api/v1/feedback'))
 export const sendFeedback = form => data('/api/v1/feedback', { method: 'POST', body: { category: form.category, content: form.content, attachmentRef: form.attachmentRef } })

@@ -61,5 +61,28 @@ a { color: var(--brand); }
 #drawer-messages .drawer { top: 0; bottom: 0; height: 100%; width: min(430px, 94vw); border-radius: 0; box-shadow: -10px 0 30px #1725231f; }
 @media (max-width: 720px) { #drawer-messages .drawer { top: 0; bottom: 0; width: 94vw; } }
 
+/* 沟通浮层放大：原型最终态是 860px 宽、布局最高 560px 的居中浮层，实际可用面积偏小。
+   仅放宽宽高并让消息区撑满，配色、圆角、层级与原型一致。窄屏沿用原型自己的响应式规则。 */
+@media (min-width: 761px) {
+  .conversation-page .workspace-page-head,
+  .conversation-page .workspace-page-body { width: min(1180px, calc(100vw - 48px)); }
+  .conversation-page .workspace-page-body { max-height: min(940px, calc(100vh - 112px)); }
+  .conversation-page .conversation-layout { min-height: 0; height: min(860px, calc(100vh - 180px)); max-height: min(860px, calc(100vh - 180px)); }
+  .conversation-page .conversation-messages { min-height: 0; max-height: none; }
+}
+
+/* 账号安全列表：原型没有 .rows，按 .side-list 的行样式补一份，条目结构与创作者端一致。 */
+.security-list { list-style: none; margin: 12px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.security-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); background: #fff; }
+.security-list li:last-child { border-bottom: 0; }
+.security-list b { display: block; font-size: 13px; font-weight: 600; }
+.security-list span { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
+.security-list .btn { flex: none; }
+
+/* 验证码一行：输入框吃满剩余宽度，按钮不换行。 */
+.captcha-row { display: flex; align-items: center; gap: 8px; }
+.captcha-row input { flex: 1; min-width: 0; }
+.captcha-row .btn { flex: none; white-space: nowrap; }
+
 /* 表单校验/提交失败提示：原型没有这个类，用已声明的红色变量补一条。 */
 .form-error { margin: 14px 0 0; padding: 9px 11px; border-left: 3px solid var(--red); background: var(--redsoft); color: #8a3a33; font-size: 12px; line-height: 1.6; border-radius: 3px; }
