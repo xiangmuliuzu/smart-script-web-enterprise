@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { login, getCaptcha, getInfo, logout, request, getToken, safeRedirect, assertUser } from '../src/auth.js'
+import { login, getCaptcha, getInfo, logout, request, getToken, safeRedirect, assertUser, register, sendSmsCode, resetPassword } from '../src/auth.js'
 import { portal } from '../src/portal.js'
 const storage = new Map()
 globalThis.localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, String(value)), removeItem: key => storage.delete(key) }
@@ -95,6 +95,57 @@ test('logout calls the server and always removes local session, preserving the o
   await assert.rejects(logout())
   assert.equal(getToken(), ''); assert.equal(storage.get('unrelated'), 'keep')
 })
+test('registration submits the live agreement versions and returns the issued session for the buyer portal', async () => {
+  const calls = []
+  const agreements = { code: 200, data: { agreements: [
+    { type: 'USER_AGREEMENT', version: '1.0.0', title: '用户协议', url: 'https://example.test/user' },
+    { type: 'PRIVACY_POLICY', version: '1.0.0', title: '隐私政策', url: 'https://example.test/privacy' }
+  ] } }
+  globalThis.fetch = async (url, options) => {
+    calls.push(url)
+    if (url.endsWith('/agreements')) return { ok: true, status: 200, json: async () => agreements }
+    assert.equal(url, '/dev-api/api/v1/auth/register')
+    assert.equal(options.method, 'POST')
+    assert.equal(options.headers.Authorization, undefined)
+    assert.deepEqual(JSON.parse(options.body), {
+      phone: '13600000000',
+      code: '123456',
+      password: 'test-only-secret1',
+      deviceId: 'pc-web',
+      deviceName: 'PC Web',
+      agreementAcceptances: [
+        { type: 'USER_AGREEMENT', version: '1.0.0' },
+        { type: 'PRIVACY_POLICY', version: '1.0.0' }
+      ]
+    })
+    return { ok: true, status: 200, json: async () => ({ code: 200, token: 'issued', user }) }
+  }
+  const result = await register({ phone: '13600000000', code: '123456', password: 'test-only-secret1' })
+  assert.equal(result.token, 'issued')
+  // 采购端不校验创作者能力，新注册的普通账号可以直接使用返回的会话。
+  assert.equal(assertUser(result.user).userId, user.userId)
+  assert.deepEqual(calls, ['/dev-api/api/v1/auth/agreements', '/dev-api/api/v1/auth/register'])
+})
+
+test('registration refuses to submit when the agreement versions cannot be loaded', async () => {
+  reply({ code: 200, data: { agreements: [] } })
+  await assert.rejects(register({ phone: '13600000000', code: '123456', password: 'test-only-secret1' }), /协议版本获取失败/)
+})
+
+test('sms and password reset post the documented payloads anonymously', async () => {
+  const seen = []
+  globalThis.fetch = async (url, options) => {
+    seen.push([url, options])
+    return { ok: true, status: 200, json: async () => ({ code: 200, data: { cooldownSeconds: 60 } }) }
+  }
+  await sendSmsCode({ phone: '13600000000', scene: 'REGISTER' })
+  await resetPassword({ phone: '13600000000', code: '123456', newPassword: 'test-only-secret1' })
+  assert.deepEqual(seen.map(([url]) => url), ['/dev-api/api/v1/auth/sms/send', '/dev-api/api/v1/auth/password/reset'])
+  assert.deepEqual(JSON.parse(seen[0][1].body), { phone: '13600000000', scene: 'REGISTER', deviceId: 'pc-web' })
+  assert.deepEqual(JSON.parse(seen[1][1].body), { phone: '13600000000', code: '123456', newPassword: 'test-only-secret1' })
+  for (const [, options] of seen) assert.equal(options.headers.Authorization, undefined)
+})
+
 test('login redirects only to implemented local pages', () => {
   // 原型最终态只有 /dashboard 一个主体路由，其余入口都是浮层。
   for (const raw of [null, '//evil.test', 'https://evil.test', '/login', '/pc/user', '/session/../login', '/\\evil.test', '/%5cevil.test', '/discover', '/library', '/trade']) assert.equal(safeRedirect(raw), '/session')

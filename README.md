@@ -26,6 +26,12 @@ npm run gate
 | 登录 | POST /api/v1/auth/login，username/password/code/uuid |
 | 身份恢复 | GET /api/v1/auth/getInfo |
 | 退出 | POST /api/v1/auth/logout |
+| 协议版本 | GET /api/v1/auth/agreements（列表在 data.agreements） |
+| 发送短信验证码 | POST /api/v1/auth/sms/send，scene=REGISTER / RESET_PASSWORD |
+| 注册个人账号 | POST /api/v1/auth/register，含 agreementAcceptances |
+| 重置密码 | POST /api/v1/auth/password/reset，phone/code/newPassword |
+
+登录页的「忘记密码？」「注册个人账号」在同一张登录卡片内切换（`src/components/AccountPanel.vue`，不弹窗）：注册成功后直接用返回的 token 写入本端令牌并进入 `/dashboard`。dev 环境短信固定码 123456，密码需 8–64 位且同时包含字母和数字。
 
 使用若依 AjaxResult：成功 code=200，token、user、roles、permissions 在顶层；受保护请求附 Authorization: Bearer token。只记住用户名，不存密码或 refresh token。企业端令牌独立存储，两个端互不清理彼此会话。
 验证码只有服务端明确 captchaEnabled=false 时才关闭；加载失败需重试。刷新会重新确认身份；认证失效/账号停用清理会话，普通权限错误或网络/5xx 保留令牌并允许重试。
