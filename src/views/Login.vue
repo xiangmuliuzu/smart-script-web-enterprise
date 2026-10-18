@@ -31,8 +31,8 @@
                 </el-form-item>
               </el-form>
               <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="error-message" />
-              <!-- 原型 link-row 只有两个入口；「记住账号」是项目既有能力，保留但不额外占用一行。 -->
-              <div class="form-options"><el-checkbox v-model="remember">记住账号</el-checkbox><button type="button" class="link" @click="mode = 'reset'">忘记密码？</button></div>
+              <!-- 原型 link-row 只有两个入口；「记住密码」是项目既有能力，保留但不额外占用一行。 -->
+              <div class="form-options"><el-checkbox v-model="remember">记住密码</el-checkbox><button type="button" class="link" @click="mode = 'reset'">忘记密码？</button></div>
               <button class="btn block" type="submit" :disabled="loading || !captchaReady || captchaLoading">{{ loading ? '登录中…' : '登录个人中心' }}</button>
             </form>
             <div class="link-row">
@@ -78,8 +78,22 @@ function onRegistered(result) {
     mode.value = 'login'
   }
 }
-const form = reactive({ username: localStorage.getItem(portal.rememberKey) || '', password: '', code: '', uuid: '' })
-const remember = ref(!!form.username)
+// 记住密码：勾选后把账号和密码一起写进本机 localStorage，取消勾选立即清除。
+// 兼容早期只存账号的纯文本值，读到时按「只有账号」处理。
+function readRemembered() {
+  let raw = ''
+  try { raw = localStorage.getItem(portal.rememberKey) || '' } catch { return {} }
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw)
+    return typeof parsed === 'string' ? { username: parsed } : parsed || {}
+  } catch {
+    return { username: raw }
+  }
+}
+const remembered = readRemembered()
+const form = reactive({ username: remembered.username || '', password: remembered.password || '', code: '', uuid: '' })
+const remember = ref(Boolean(remembered.username || remembered.password))
 const loading = ref(false)
 const captchaLoading = ref(false)
 const captchaEnabled = ref(true)
@@ -113,7 +127,7 @@ async function submit() {
     if (!valid) return
     if (captchaEnabled.value && !form.code.trim()) { error.value = '请输入验证码'; return }
     await login({ ...form, username: form.username.trim() })
-    if (remember.value) localStorage.setItem(portal.rememberKey, form.username.trim())
+    if (remember.value) localStorage.setItem(portal.rememberKey, JSON.stringify({ username: form.username.trim(), password: form.password }))
     else localStorage.removeItem(portal.rememberKey)
     await router.replace(safeRedirect(route.query.redirect))
   } catch (failure) {
