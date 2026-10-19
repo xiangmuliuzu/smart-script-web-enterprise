@@ -36,11 +36,11 @@
               <button class="btn block" type="submit" :disabled="loading || !captchaReady || captchaLoading">{{ loading ? '登录中…' : '登录个人中心' }}</button>
             </form>
             <div class="link-row">
-              <button class="link" type="button" @click="ElMessage.info('短信登录尚未开放，请使用账号密码登录')">短信登录</button>
+              <button class="link" type="button" @click="mode = 'sms'">短信登录</button>
               <button class="link" type="button" @click="mode = 'register'">注册个人账号</button>
             </div>
           </template>
-          <AccountPanel v-else :mode="mode" @back="mode = 'login'" @switch="mode = $event" @registered="onRegistered" />
+          <AccountPanel v-else :mode="mode" @back="mode = 'login'" @switch="mode = $event" @registered="onRegistered" @logged-in="onSmsLoggedIn" />
         </div>
       </div>
     </div>
@@ -59,14 +59,19 @@ const router = useRouter()
 const formRef = ref(null)
 // 登录 / 注册 / 找回密码在同一页切换，不再用弹窗。
 const mode = ref('login')
-const heading = computed(() => (mode.value === 'register' ? '注册个人账号' : mode.value === 'reset' ? '找回密码' : '登录个人中心'))
+const heading = computed(() => (mode.value === 'register' ? '注册个人账号' : mode.value === 'reset' ? '找回密码' : mode.value === 'sms' ? '短信登录' : '登录个人中心'))
 const subheading = computed(() =>
   mode.value === 'register'
     ? '用手机号注册个人账号，注册后直接进入版权采购工作台。'
     : mode.value === 'reset'
       ? '通过绑定手机号接收短信验证码，重置登录密码。'
-      : '使用个人账号进入版权采购工作台。'
+      : mode.value === 'sms'
+        ? '使用手机号和验证码登录，未注册手机号验证后将自动创建账号。'
+        : '使用个人账号进入版权采购工作台。'
 )
+async function onSmsLoggedIn() {
+  await router.replace(safeRedirect(route.query.redirect))
+}
 // 注册接口直接返回 App 域会话，注册成功后按登录同等规则落库并进入工作台。
 function onRegistered(result) {
   try {

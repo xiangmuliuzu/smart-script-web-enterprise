@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { login, getCaptcha, getInfo, logout, request, getToken, safeRedirect, assertUser, register, sendSmsCode, resetPassword } from '../src/auth.js'
+import { login, smsLogin, getCaptcha, getInfo, logout, request, getToken, safeRedirect, assertUser, register, sendSmsCode, resetPassword } from '../src/auth.js'
 import { portal } from '../src/portal.js'
 const storage = new Map()
 globalThis.localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, String(value)), removeItem: key => storage.delete(key) }
@@ -29,6 +29,54 @@ test('ordinary buyer and legacy user types use the same login; creator capabilit
     assertUser({ ...user, userType, authorCapability })
   }
   for (const bad of [null, {}, { ...user, userType: '00' }, { ...user, userType: '99' }]) assert.throws(() => assertUser(bad))
+})
+
+test('SMS login submits current agreement versions anonymously and isolates the enterprise session', async () => {
+  storage.set(portal.tokenKey, 'expired-enterprise')
+  storage.set('Admin-Token', 'keep-admin')
+  storage.set('PcUser-Token', 'keep-user')
+  const calls = []
+  const agreements = [{ type: 'USER_AGREEMENT', version: '2.0' }, { type: 'PRIVACY_POLICY', version: '3.0' }]
+  globalThis.fetch = async (url, options) => {
+    calls.push(url)
+    assert.equal(options.headers.Authorization, undefined)
+    if (url.endsWith('/agreements')) return { ok: true, status: 200, json: async () => ({ code: 200, data: { agreements } }) }
+    assert.equal(url, '/dev-api/api/v1/auth/sms/login')
+    assert.equal(options.method, 'POST')
+    assert.deepEqual(JSON.parse(options.body), {
+      phone: '13600000000', code: '123456', deviceId: 'pc-web', deviceName: 'PC Web', agreementAcceptances: agreements
+    })
+    return { ok: true, status: 200, json: async () => ({ code: 200, token: 'sms-issued', user }) }
+  }
+  assert.equal(await smsLogin({ phone: '13600000000', code: '123456' }), user)
+  assert.equal(getToken(), 'sms-issued')
+  assert.equal(storage.get('Admin-Token'), 'keep-admin')
+  assert.equal(storage.get('PcUser-Token'), 'keep-user')
+  assert.deepEqual(calls, ['/dev-api/api/v1/auth/agreements', '/dev-api/api/v1/auth/sms/login'])
+})
+
+test('SMS code rejection, invalid identities and malformed sessions cannot leave an enterprise token', async () => {
+  for (const result of [
+    { code: 40001, message: '验证码错误或已失效' },
+    { code: 40301, message: '账号已停用' },
+    { code: 200, user },
+    { code: 200, token: 'wrong-domain', user: { ...user, userType: '00' } }
+  ]) {
+    storage.set(portal.tokenKey, 'old')
+    globalThis.fetch = async url => ({ ok: true, status: 200, json: async () => url.endsWith('/agreements')
+      ? { code: 200, data: { agreements: [{ type: 'USER_AGREEMENT', version: '1' }, { type: 'PRIVACY_POLICY', version: '1' }] } }
+      : result })
+    await assert.rejects(smsLogin({ phone: '13600000000', code: '000000' }))
+    assert.equal(getToken(), '')
+  }
+})
+
+test('SMS login does not submit without current agreement versions', async () => {
+  let calls = 0
+  globalThis.fetch = async () => { calls++; return { ok: true, status: 200, json: async () => ({ code: 200, data: { agreements: [] } }) } }
+  await assert.rejects(smsLogin({ phone: '13600000000', code: '123456' }), /协议版本获取失败/)
+  assert.equal(calls, 1)
+  assert.equal(getToken(), '')
 })
 test('malformed login and administrative responses never leave a portal token', async () => {
   for (const body of [{ code: 200, user }, { code: 200, token: 'wrong-domain', user: { ...user, userType: '00' } }]) {
@@ -139,10 +187,12 @@ test('sms and password reset post the documented payloads anonymously', async ()
     return { ok: true, status: 200, json: async () => ({ code: 200, data: { cooldownSeconds: 60 } }) }
   }
   await sendSmsCode({ phone: '13600000000', scene: 'REGISTER' })
+  await sendSmsCode({ phone: '13600000000', scene: 'LOGIN' })
   await resetPassword({ phone: '13600000000', code: '123456', newPassword: 'test-only-secret1' })
-  assert.deepEqual(seen.map(([url]) => url), ['/dev-api/api/v1/auth/sms/send', '/dev-api/api/v1/auth/password/reset'])
+  assert.deepEqual(seen.map(([url]) => url), ['/dev-api/api/v1/auth/sms/send', '/dev-api/api/v1/auth/sms/send', '/dev-api/api/v1/auth/password/reset'])
   assert.deepEqual(JSON.parse(seen[0][1].body), { phone: '13600000000', scene: 'REGISTER', deviceId: 'pc-web' })
-  assert.deepEqual(JSON.parse(seen[1][1].body), { phone: '13600000000', code: '123456', newPassword: 'test-only-secret1' })
+  assert.deepEqual(JSON.parse(seen[1][1].body), { phone: '13600000000', scene: 'LOGIN', deviceId: 'pc-web' })
+  assert.deepEqual(JSON.parse(seen[2][1].body), { phone: '13600000000', code: '123456', newPassword: 'test-only-secret1' })
   for (const [, options] of seen) assert.equal(options.headers.Authorization, undefined)
 })
 

@@ -57,7 +57,7 @@ export async function getAgreements() {
   return list
 }
 
-/** 发送短信验证码，scene 取 REGISTER / RESET_PASSWORD。返回 cooldownSeconds 供倒计时使用。 */
+/** 发送短信验证码，scene 取 LOGIN / REGISTER / RESET_PASSWORD。返回 cooldownSeconds 供倒计时使用。 */
 export async function sendSmsCode({ phone, scene }) {
   return request('/api/v1/auth/sms/send', {
     method: 'POST',
@@ -96,6 +96,26 @@ export async function getCaptcha() {
 export async function login(body) {
   clearSession()
   const result = await request('/api/v1/auth/login', { method: 'POST', body, authenticated: false })
+  assertUser(result.user)
+  if (typeof result.token !== 'string' || !result.token) throw new Error('登录响应缺少令牌，请重试')
+  localStorage.setItem(portal.tokenKey, result.token)
+  return result.user
+}
+/** 与 App 共用短信登录；固定测试码及有效期由后端校验。 */
+export async function smsLogin({ phone, code }) {
+  clearSession()
+  const agreements = await getAgreements()
+  const result = await request('/api/v1/auth/sms/login', {
+    method: 'POST',
+    authenticated: false,
+    body: {
+      phone,
+      code,
+      deviceId: PC_DEVICE_ID,
+      deviceName: PC_DEVICE_NAME,
+      agreementAcceptances: agreements.map(({ type, version }) => ({ type, version }))
+    }
+  })
   assertUser(result.user)
   if (typeof result.token !== 'string' || !result.token) throw new Error('登录响应缺少令牌，请重试')
   localStorage.setItem(portal.tokenKey, result.token)

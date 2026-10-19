@@ -17,23 +17,24 @@
           </button>
         </div>
       </el-form-item>
-      <el-form-item :label="mode === 'register' ? '设置密码' : '新密码'" prop="password">
+      <el-form-item v-if="mode !== 'sms'" :label="mode === 'register' ? '设置密码' : '新密码'" prop="password">
         <el-input v-model="form.password" type="password" show-password placeholder="8–64 位，需同时包含字母和数字" autocomplete="new-password" />
       </el-form-item>
-      <el-form-item label="确认密码" prop="confirm">
+      <el-form-item v-if="mode !== 'sms'" label="确认密码" prop="confirm">
         <el-input v-model="form.confirm" type="password" show-password placeholder="请再次输入密码" autocomplete="new-password" />
       </el-form-item>
-      <el-form-item v-if="mode === 'register'" prop="agreed" class="agreement-item">
+      <el-form-item v-if="mode !== 'reset'" prop="agreed" class="agreement-item">
         <el-checkbox v-model="form.agreed">我已阅读并同意</el-checkbox>
         <span class="agreement-links">
-          <a v-for="item in agreements" :key="item.type" :href="item.url" target="_blank" rel="noopener noreferrer" class="agreement-link">《{{ item.title }}》</a>
+          <button v-for="item in agreements" :key="item.type" type="button" class="agreement-link" @click="activeAgreement = item">《{{ item.title }}》</button>
         </span>
       </el-form-item>
       <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="account-error" />
       <el-button class="account-submit" type="primary" native-type="submit" :loading="submitting">
-        {{ mode === 'register' ? '注册' : '重置密码' }}
+        {{ mode === 'sms' ? '登录个人中心' : mode === 'register' ? '注册' : '重置密码' }}
       </el-button>
     </el-form>
+    <AgreementDialog :agreement="activeAgreement" @close="activeAgreement = null" />
     <p v-if="!success" class="account-switch">
       <button type="button" class="switch-link" @click="emit('back')">返回登录</button>
       <span class="switch-divider">·</span>
@@ -45,20 +46,22 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getAgreements, register, resetPassword, sendSmsCode } from '../auth.js'
+import { getAgreements, register, resetPassword, sendSmsCode, smsLogin } from '../auth.js'
+import AgreementDialog from './AgreementDialog.vue'
 
 const props = defineProps({
-  // reset=忘记密码；register=注册个人账号
+  // reset=忘记密码；register=注册个人账号；sms=短信登录
   mode: { type: String, default: 'reset' },
   // 注册成功后的引导文案（用户端需要提示去 App 完成创作者认证）
   registerTitle: { type: String, default: '账号已创建' },
   registerDesc: { type: String, default: '请使用新账号登录。' }
 })
-const emit = defineEmits(['back', 'switch', 'registered'])
+const emit = defineEmits(['back', 'switch', 'registered', 'logged-in'])
 
 const formRef = ref(null)
 const form = reactive({ phone: '', code: '', password: '', confirm: '', agreed: false })
 const agreements = ref([])
+const activeAgreement = ref(null)
 const error = ref('')
 const sending = ref(false)
 const submitting = ref(false)
@@ -88,6 +91,7 @@ const rules = {
 }
 
 function resetState({ keepPhone = false } = {}) {
+  activeAgreement.value = null
   error.value = ''
   success.value = false
   form.code = ''
@@ -104,9 +108,9 @@ async function ensureAgreements() {
   try {
     agreements.value = await getAgreements()
   } catch (failure) {
-    // 协议拿不到只影响勾选展示；注册提交时 auth.register 会重新拉取并明确报错。
+    // 提交时会重新拉取协议版本并明确报错。
     agreements.value = []
-    if (props.mode === 'register') error.value = failure.message || ''
+    if (props.mode !== 'reset') error.value = failure.message || ''
   }
 }
 
@@ -128,14 +132,14 @@ function stopCountdown() {
 
 async function sendCode() {
   if (countdown.value > 0 || sending.value) return
-  const phoneValid = await formRef.value?.validateField('phone').then(() => true).catch(() => false)
-  if (!phoneValid) return
   sending.value = true
   error.value = ''
   try {
+    const phoneValid = await formRef.value?.validateField('phone').then(() => true).catch(() => false)
+    if (!phoneValid) return
     const result = await sendSmsCode({
       phone: form.phone.trim(),
-      scene: props.mode === 'register' ? 'REGISTER' : 'RESET_PASSWORD'
+      scene: props.mode === 'sms' ? 'LOGIN' : props.mode === 'register' ? 'REGISTER' : 'RESET_PASSWORD'
     })
     startCountdown(Number(result?.data?.cooldownSeconds) || 60)
     ElMessage.success('验证码已发送，请查收短信')
@@ -148,14 +152,19 @@ async function sendCode() {
 
 async function submit() {
   if (submitting.value) return
-  error.value = ''
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
   submitting.value = true
+  error.value = ''
   try {
+    const valid = await formRef.value?.validate().catch(() => false)
+    if (!valid) return
     const phone = form.phone.trim()
     const code = form.code.trim()
-    if (props.mode === 'register') {
+    if (props.mode === 'sms') {
+      await smsLogin({ phone, code })
+      form.code = ''
+      stopCountdown()
+      emit('logged-in')
+    } else if (props.mode === 'register') {
       const result = await register({ phone, code, password: form.password })
       if (typeof result?.token !== 'string' || !result.token) throw new Error('注册响应缺少会话，请稍后重试')
       success.value = true
@@ -173,7 +182,7 @@ async function submit() {
       stopCountdown()
     }
   } catch (failure) {
-    error.value = failure.message || (props.mode === 'register' ? '注册失败，请稍后重试' : '重置失败，请稍后重试')
+    error.value = failure.message || (props.mode === 'sms' ? '登录失败，请稍后重试' : props.mode === 'register' ? '注册失败，请稍后重试' : '重置失败，请稍后重试')
   } finally {
     submitting.value = false
   }
@@ -187,10 +196,10 @@ function switchMode() {
 
 watch(() => props.mode, () => {
   resetState({ keepPhone: true })
-  if (props.mode === 'register') ensureAgreements()
+  if (props.mode !== 'reset') ensureAgreements()
 })
 onMounted(() => {
-  if (props.mode === 'register') ensureAgreements()
+  if (props.mode !== 'reset') ensureAgreements()
 })
 onBeforeUnmount(stopCountdown)
 </script>
@@ -205,7 +214,9 @@ onBeforeUnmount(stopCountdown)
 .code-button:disabled { color: #9aa5ab; cursor: not-allowed; }
 .agreement-item :deep(.el-form-item__content) { flex-wrap: wrap; gap: 2px; line-height: 1.8; }
 .agreement-links { display: inline-flex; flex-wrap: wrap; }
-.agreement-link { color: var(--brand, #1f6f5c); text-decoration: none; font-size: 12px; }
+.agreement-link { border: 0; background: none; padding: 0; color: var(--brand, #1f6f5c); font: inherit; font-size: 12px; cursor: pointer; }
+.agreement-link:hover { text-decoration: underline; }
+.agreement-link:focus-visible { outline: 2px solid var(--brand, #1f6f5c); outline-offset: 2px; }
 .account-error { margin-top: 4px; }
 .account-submit { width: 100%; margin-top: 6px; }
 .account-switch { margin: 14px 0 0; font-size: 12px; color: var(--muted, #667); text-align: center; }

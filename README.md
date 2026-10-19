@@ -27,11 +27,12 @@ npm run gate
 | 身份恢复 | GET /api/v1/auth/getInfo |
 | 退出 | POST /api/v1/auth/logout |
 | 协议版本 | GET /api/v1/auth/agreements（列表在 data.agreements） |
-| 发送短信验证码 | POST /api/v1/auth/sms/send，scene=REGISTER / RESET_PASSWORD |
+| 发送短信验证码 | POST /api/v1/auth/sms/send，scene=LOGIN / REGISTER / RESET_PASSWORD |
+| 短信登录 | POST /api/v1/auth/sms/login，phone/code/deviceId/deviceName/agreementAcceptances |
 | 注册个人账号 | POST /api/v1/auth/register，含 agreementAcceptances |
 | 重置密码 | POST /api/v1/auth/password/reset，phone/code/newPassword |
 
-登录页的「忘记密码？」「注册个人账号」在同一张登录卡片内切换（`src/components/AccountPanel.vue`，不弹窗）：注册成功后直接用返回的 token 写入本端令牌并进入 `/dashboard`。dev 环境短信固定码 123456，密码需 8–64 位且同时包含字母和数字。
+登录页的「短信登录」「忘记密码？」「注册个人账号」在同一张登录卡片内切换（`src/components/AccountPanel.vue`，不弹窗）。短信登录先获取验证码，再勾选协议并提交；与 App 共用后端，当前 mock 环境固定验证码为 `123456`，仍由服务端校验发码、有效期及账号状态。未注册手机号按 App 相同规则自动创建普通用户账号。登录成功后保存企业端令牌并回跳工作台；注册成功后直接使用返回会话进入 `/dashboard`。密码需 8–64 位且同时包含字母和数字。
 
 使用若依 AjaxResult：成功 code=200，token、user、roles、permissions 在顶层；受保护请求附 Authorization: Bearer token。登录页勾选「记住密码」时把账号与密码写入本机 `localStorage`（取消勾选即清除，兼容早期只存账号的旧值），不存 refresh token。企业端令牌独立存储，两个端互不清理彼此会话。
 验证码只有服务端明确 captchaEnabled=false 时才关闭；加载失败需重试。刷新会重新确认身份；认证失效/账号停用清理会话，普通权限错误或网络/5xx 保留令牌并允许重试。
