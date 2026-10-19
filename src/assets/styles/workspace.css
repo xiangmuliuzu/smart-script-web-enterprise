@@ -111,7 +111,7 @@
 .enterprise-portal :is(.work-detail-columns, .order-detail-grid) { gap: 28px; }
 .enterprise-portal .work-detail-cover { background: var(--soft); border: 1px solid var(--line); }
 .enterprise-portal :is(.workspace-page-close, .chapter-reader-close) { border-radius: 2px; background: transparent; }
-.enterprise-portal .trade-tabs { width: 100%; padding: 0; gap: 20px; background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+.enterprise-portal .trade-tabs { width: 100%; padding: 0 20px; gap: 20px; background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
 .enterprise-portal .trade-tabs button { padding: 10px 0; border-bottom: 2px solid transparent; border-radius: 0; }
 .enterprise-portal .trade-tabs button[data-active="true"] { border-bottom-color: var(--brand); background: transparent; }
 .enterprise-portal .notice-list { gap: 0; }

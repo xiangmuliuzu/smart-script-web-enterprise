@@ -36,6 +36,10 @@ export async function listOrders({ status, pageNum = 1, pageSize = 10 } = {}) {
 }
 export const getOrder = orderId => data('/api/v1/trade/order/' + id(orderId))
 export const cancelOrder = (orderId, reason) => data('/api/v1/trade/order/' + id(orderId) + '/cancel', { method: 'PUT', body: { reason } })
+// 买方付款到托管：confirmed → escrow_pending（无需 body）。
+export const payOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay', { method: 'POST' })
+// 买方确认收货：delivering → completed，释放托管资金并写入作者收益。
+export const completeOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/complete', { method: 'POST' })
 
 /* ---------------- 作品（内容市场） ---------------- */
 export async function listWorks({ keyword, categoryId, sort, page = 1, pageSize = 12 } = {}) {

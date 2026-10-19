@@ -31,8 +31,12 @@ export const inquiryProgressText = value => inquiryProgress[value] || '采购推
 // 采购进度时间线：后端只有询盘与订单两类事实，用它们推出已完成的节点。
 export const progressIndex = ({ hasOrder = false, orderDone = false, hasQuote = false } = {}) => orderDone ? 4 : hasOrder ? 3 : hasQuote ? 1 : 0
 export const orderStatus = {
-  confirmed: { label: '履行中', tone: 'gold' },
-  cancelled: { label: '已取消', tone: 'gray' }
+  confirmed: { label: '已确认', tone: 'gold' },
+  escrow_pending: { label: '已托管', tone: 'gold' },
+  delivering: { label: '交割中', tone: 'gold' },
+  completed: { label: '已完成', tone: '' },
+  cancelled: { label: '已取消', tone: 'gray' },
+  refunded: { label: '已退款', tone: 'red' }
 }
 export const realNameStatus = {
   NOT_SUBMITTED: { label: '未实名认证', tone: 'gray', note: '尚未完成实名认证，完成后才能参与作品采购、合同签署和订单交付。' },
