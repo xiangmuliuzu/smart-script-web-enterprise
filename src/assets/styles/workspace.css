@@ -30,11 +30,13 @@
 .enterprise-portal :is(button, input, select, textarea) { font-family: var(--sans); }
 .enterprise-portal .topbar { height: 56px; padding: 0 26px; gap: 24px; background: var(--bg); }
 .enterprise-portal .topbar .brand { color: var(--ink); }
-.enterprise-portal .topbar .brand strong { font-size: 17px; font-weight: 600; }
-.enterprise-portal .topbar .brand span { font-size: 11.5px; color: var(--muted); }
-.enterprise-portal .nav button { font-size: 14px; }
+.enterprise-portal .topbar .brand strong { font-size: 19px; font-weight: 600; }
+.enterprise-portal .topbar .brand span { font-size: 13px; color: var(--muted); }
+.enterprise-portal .nav button { font-size: 16px; }
 .enterprise-portal .top-actions { gap: 20px; }
-.enterprise-portal .top-action { font-size: 12px; color: #5c5850; }
+.enterprise-portal .top-action { font-size: 14px; color: #5c5850; }
+.enterprise-portal .company-text b { font-size: 15px; }
+.enterprise-portal .company-text span { font-size: 13px; }
 .enterprise-portal .company-mark { width: 28px; height: 28px; background: var(--brand); color: #fff; }
 .enterprise-portal .account-dropdown { border-radius: 2px; }
 .enterprise-portal .portal-main { padding: 38px 46px 100px; }
@@ -45,16 +47,18 @@
 .enterprise-portal :is(.section-panel, .side-panel) { border: 0; border-radius: 0; background: transparent; }
 .enterprise-portal .purchase-panel { min-width: 0; overflow: visible; }
 .enterprise-portal .purchase-panel > .section-head { padding: 0 0 14px; }
-.enterprise-portal .purchase-panel > .section-head h2 { font-size: 26px; font-weight: 600; }
-.enterprise-portal .purchase-panel > .section-head span { font-size: 12.5px; }
+.enterprise-portal .purchase-panel > .section-head h2 { font-size: 30px; font-weight: 600; }
+.enterprise-portal .purchase-panel > .section-head span { font-size: 14.5px; }
 .enterprise-portal .purchase-filter { padding: 18px 0; background: transparent; gap: 10px; }
-.enterprise-portal .purchase-filter :is(input, select) { background: transparent; border-radius: 2px; border-color: #c9c4b8; }
+.enterprise-portal .purchase-filter :is(input, select) { background: transparent; border-radius: 2px; border-color: #c9c4b8; font-size: 14px; }
+.enterprise-portal .split :is(.load-state, .btn) { font-size: 15px; }
 .enterprise-portal .purchase-filter input { min-width: 180px; }
-.enterprise-portal .purchase-filter .filter-count { font-size: 11.5px; }
+.enterprise-portal .purchase-filter .filter-count { font-size: 13.5px; }
 .enterprise-portal .purchase-view { padding: 0; }
 .enterprise-portal .purchase-groups { gap: 30px; padding: 24px 0 0; }
 .enterprise-portal .purchase-group-head { margin: 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
-.enterprise-portal .purchase-group-head h3 { font-size: 16px; font-weight: 600; }
+.enterprise-portal .purchase-group-head h3 { font-size: 18px; font-weight: 600; }
+.enterprise-portal .purchase-group-head span { font-size: 13px; }
 .enterprise-portal .purchase-group .purchase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 18px; padding-top: 18px; align-items: stretch; }
 .enterprise-portal .purchase-group .purchase-card {
   display: grid;
@@ -72,20 +76,21 @@
 .enterprise-portal .purchase-card-top { display: contents; }
 .enterprise-portal .purchase-cover-area { position: relative; grid-row: 1 / span 2; display: grid; place-items: center; padding: 0; border: 0; border-right: 1px solid var(--line); background: #e9e5da; }
 .enterprise-portal .purchase-card .work-avatar { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; background: transparent; color: #1b1a1838; font-size: 36px; }
-.enterprise-portal .purchase-status { position: absolute; left: 9px; top: 9px; width: auto; max-width: calc(100% - 18px); padding: 3px 6px; border: 1px solid currentColor; border-radius: 2px; background: var(--bg); font-size: 10.5px; font-weight: 400; }
+.enterprise-portal .purchase-status { position: absolute; left: 9px; top: 9px; width: auto; max-width: calc(100% - 18px); padding: 3px 6px; border: 1px solid currentColor; border-radius: 2px; background: var(--bg); font-size: 13px; font-weight: 400; }
 .enterprise-portal .purchase-status.pending { background: var(--bg); }
 .enterprise-portal .purchase-summary { padding: 16px 18px 0; }
-.enterprise-portal .purchase-summary h3 { margin: 0 0 6px; font-size: 16.5px; font-weight: 600; }
-.enterprise-portal .purchase-summary .work-type { margin-bottom: 9px; font-size: 11.5px; color: var(--muted); }
-.enterprise-portal .purchase-summary p { min-height: 0; max-height: none; -webkit-line-clamp: 2; font-size: 13px; line-height: 1.8; color: #5c5850; }
-.enterprise-portal .purchase-card-foot { grid-column: 2; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 18px 16px; border: 0; font-size: 11px; }
+.enterprise-portal .purchase-summary h3 { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
+.enterprise-portal .purchase-summary .work-type { margin-bottom: 9px; font-size: 13.5px; color: var(--muted); }
+.enterprise-portal .purchase-summary p { min-height: 0; max-height: none; -webkit-line-clamp: 2; font-size: 15px; line-height: 1.8; color: #5c5850; }
+.enterprise-portal .purchase-card-foot { grid-column: 2; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 18px 16px; border: 0; font-size: 13px; }
 .enterprise-portal .purchase-group .purchase-card-foot span { white-space: normal; }
-.enterprise-portal .purchase-card-foot strong { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.enterprise-portal .purchase-card-foot strong { font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .enterprise-portal .side-head { padding: 0 0 14px; align-items: baseline; }
-.enterprise-portal .side-head h3 { font-size: 17px; font-weight: 500; }
+.enterprise-portal .side-head h3 { font-size: 19px; font-weight: 500; }
+.enterprise-portal .side-head :is(span, .tag) { font-size: 13px; }
 .enterprise-portal .side-list li { padding: 14px 0; background: transparent; }
-.enterprise-portal .side-list b { font-size: 12.5px; font-weight: 500; }
-.enterprise-portal .side-list span { font-size: 11.5px; }
+.enterprise-portal .side-list b { font-size: 14.5px; font-weight: 500; }
+.enterprise-portal .side-list span { font-size: 13.5px; }
 .enterprise-portal .interactive-side-item:hover,
 .enterprise-portal .interactive-side-item:focus-visible { padding-left: 0; background: var(--soft); }
 .enterprise-portal .activity { margin-top: 32px; }
@@ -136,7 +141,6 @@
 @media (max-width: 1100px) {
   .enterprise-portal .topbar .brand span { display: none; }
   .enterprise-portal .portal-main { padding: 30px 26px 80px; }
-  .enterprise-portal .purchase-card-foot { font-size: 10.5px; }
   .enterprise-portal .purchase-group .purchase-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
   .enterprise-portal .purchase-group .purchase-card { grid-template-columns: 92px minmax(0, 1fr); }
   .enterprise-portal .purchase-summary { padding: 14px 14px 0; }
@@ -151,7 +155,7 @@
   .enterprise-portal .portal-main { padding: 28px 18px 70px; }
   .enterprise-portal .split { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   .enterprise-portal .split > aside { border-left: 0; border-top: 1px solid var(--line); padding: 24px 0 0; }
-  .enterprise-portal .purchase-panel > .section-head h2 { font-size: 24px; }
+  .enterprise-portal .purchase-panel > .section-head h2 { font-size: 28px; }
   .enterprise-portal .purchase-group-head { align-items: flex-start; flex-wrap: wrap; gap: 4px; }
   .enterprise-portal .purchase-filter :is(input, select) { min-width: 0; }
   .enterprise-portal .purchase-filter input { flex-basis: 100%; }
