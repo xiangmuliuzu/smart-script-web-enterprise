@@ -11,7 +11,6 @@ export async function listInquiries({ status, keyword, pageNum = 1, pageSize = 1
   return { total: Number(result?.total || 0), list: asList(result) }
 }
 export const getInquiry = inquiryId => data('/api/v1/trade/inquiry/' + id(inquiryId))
-export const createInquiry = body => data('/api/v1/trade/inquiry', { method: 'POST', body })
 export const closeInquiry = inquiryId => data('/api/v1/trade/inquiry/' + id(inquiryId) + '/close', { method: 'PUT' })
 // 询盘沟通会话：inquiryId 是查询参数，不是 body 字段。
 export const openInquiryChat = inquiryId => data('/api/v1/trade/inquiry/chat/sessions?' + qs({ inquiryId }), { method: 'POST' })
@@ -19,22 +18,15 @@ export const createInquiryChatSession = inquiryId => data('/api/v1/users/me/chat
 
 /* ---------------- 报价与议价 ---------------- */
 // 报价 price 字段按元直传，后端不做单位换算（只有订单 amount 是分）。
-export async function listQuotes(inquiryId) {
-  const result = await data('/api/v1/trade/quote/list?' + qs({ inquiryId }))
-  return { total: Number(result?.total || 0), list: asList(result) }
-}
 export const latestQuote = inquiryId => data('/api/v1/trade/quote/latest?' + qs({ inquiryId }))
 export const counterOffer = body => data('/api/v1/trade/quote/counter-offer', { method: 'POST', body })
-export const submitQuote = body => data('/api/v1/trade/quote', { method: 'POST', body })
 export const acceptQuote = quoteId => data('/api/v1/trade/quote/' + id(quoteId) + '/accept', { method: 'PUT' })
-export const rejectQuote = quoteId => data('/api/v1/trade/quote/' + id(quoteId) + '/reject', { method: 'PUT' })
 
 /* ---------------- 订单（amount 单位为分） ---------------- */
 export async function listOrders({ status, pageNum = 1, pageSize = 10 } = {}) {
   const result = await data('/api/v1/trade/order/list?' + qs({ role: 'buyer', status, pageNum, pageSize }))
   return { total: Number(result?.total || 0), list: asList(result) }
 }
-export const getOrder = orderId => data('/api/v1/trade/order/' + id(orderId))
 export const cancelOrder = (orderId, reason) => data('/api/v1/trade/order/' + id(orderId) + '/cancel', { method: 'PUT', body: { reason } })
 // 买方付款到托管：confirmed → escrow_pending（无需 body）。
 export const payOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay', { method: 'POST' })
@@ -47,7 +39,6 @@ export async function listWorks({ keyword, categoryId, sort, page = 1, pageSize 
   return { total: Number(result?.total || 0), list: asList(result) }
 }
 export const getWork = workId => data('/api/v1/content/works/' + id(workId))
-export const listCategories = async () => asList(await data('/api/v1/content/categories'))
 export const listChapters = workId => data('/api/v1/content/works/' + id(workId) + '/chapters')
 // 章节正文路径不嵌套在作品下；403 也会带 data（content 为空、readable=false）。
 export const getChapter = chapterId => data('/api/v1/content/chapters/' + id(chapterId))
@@ -66,7 +57,6 @@ export async function listChatSessions(params = {}) {
   const result = await data('/api/v1/users/me/chat/sessions?' + qs(params))
   return asList(result)
 }
-export const openChatSession = body => data('/api/v1/users/me/chat/sessions', { method: 'POST', body })
 export const listChatMessages = async sessionId => asList(await data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages'))
 export const sendChatMessage = (sessionId, content) => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages', { method: 'POST', body: { msgType: 'TEXT', content } })
 export const readChatSession = sessionId => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/read', { method: 'PUT' })
@@ -98,5 +88,4 @@ export const changePassword = form => data('/api/v1/auth/password/change', { met
 // 换绑手机四步：old/send → old/verify（换取 stepUpToken）→ new/send → confirm。
 export const phoneChange = (step, body) => data('/api/v1/users/me/phone/change/' + step, { method: 'POST', body })
 
-export const listFeedback = async () => asList(await data('/api/v1/feedback'))
 export const sendFeedback = form => data('/api/v1/feedback', { method: 'POST', body: { category: form.category, content: form.content, attachmentRef: form.attachmentRef } })

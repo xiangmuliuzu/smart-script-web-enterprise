@@ -15,7 +15,6 @@ export const money = fen => '¥' + (Number(fen || 0) / 100).toLocaleString('zh-C
 
 export const licenseLabels = { exclusive: '独家授权', non_exclusive: '非独家授权', adaptation: '改编授权' }
 export const licenseLabel = value => licenseLabels[value] || '授权方式待确认'
-export const licenseTone = value => value === 'exclusive' ? 'gold' : 'gray'
 
 export const inquiryStatus = {
   pending: { label: '待回复', tone: 'gray' },
