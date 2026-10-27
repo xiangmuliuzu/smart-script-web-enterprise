@@ -8,7 +8,10 @@
           <h1>管理已购作品<br>推进项目制作。</h1>
           <p>从报价确认、合同签署到作品交付，个人采购事项集中在一个工作台完成。</p>
         </div>
-        <img :src="enterpriseIllustration" class="login-illustration" alt="采购方讨论剧本和分镜，并签署版权合同" />
+        <picture>
+          <source :srcset="enterpriseIllustration" type="image/webp" media="(min-width: 901px)" />
+          <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" width="1254" height="1254" fetchpriority="high" decoding="async" class="login-illustration" alt="采购方讨论剧本和分镜，并签署版权合同" />
+        </picture>
         <div class="visual-foot">剧云策 · 智能剧本创作平台</div>
       </div>
 
@@ -48,7 +51,7 @@
 </template>
 <script setup>
 import { computed, reactive, ref, onMounted } from 'vue'
-import enterpriseIllustration from '../assets/images/login-enterprise-v2.png'
+import enterpriseIllustration from '../assets/images/login-enterprise-v2.webp'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { assertUser, getCaptcha, login, safeRedirect } from '../auth.js'
