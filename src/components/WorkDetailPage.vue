@@ -82,7 +82,6 @@
 
         <div class="work-detail-actions">
           <button type="button" class="btn ghost" @click="$emit('close')">返回作品列表</button>
-          <button type="button" class="btn" @click="$emit('contact', work)">联系{{ work.authorName ? '作者' : '平台运营' }}</button>
         </div>
       </template>
       <LoadState v-else empty empty-text="未找到该作品。" />

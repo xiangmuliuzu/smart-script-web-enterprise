@@ -37,15 +37,14 @@
 
       <!-- 原型最终态的浮层：作品详情页 + 章节阅读器 + 消息页 + 沟通页 + 交易抽屉 + 两个抽屉 + 订单/合同详情 -->
       <WorkDetailPage ref="detail" :open="!!activeCard" :work-id="activeCard?.workId" :purchase="activeCard" :status="activeCard?.status || '购买中'"
-                      @close="activeCard = null" @preview="previewChapter" @contact="contactAuthor" @open-contract="openContractDetail(activeCard?.order)" />
+                      @close="activeCard = null" @preview="previewChapter" @contact="contactAuthor" @open-contract="openTrade('contract')" />
       <ChapterReader :open="!!reader" :index="reader?.index || 0" :total="readerChapters.length" :chapter-id="reader?.chapterId"
                      :title="reader?.title || ''" :work-title="activeCard?.title || ''" :author="detail?.work?.authorName || ''"
                      @close="reader = null" @step="stepChapter" />
       <MessagePage ref="messages" :open="messageOpen" @close="messageOpen = false" @read="refreshUnread" @open-trade="openTradeFrom" />
       <ConversationPage ref="conversation" :open="conversationOpen" :session-id="conversationSession" @close="conversationOpen = false" @read="refreshUnread" />
-      <TradeDrawer ref="trade" :open="tradeOpen" :panel="tradePanel" @close="tradeOpen = false" @open-order="openOrderDetail" @open-contract="openContractDetail" @open-conversation="openConversationFor" />
-      <TradeDetailModal :open="!!detailModal" :mode="detailModal?.mode" :order="detailModal?.order"
-                        @close="detailModal = null" @contact="contactFromOrder" />
+      <!-- 交易中心统一收敛为用户端四 Tab（询盘/会话/订单/合同）的 Cooperation 抽屉，合同预览/签署内聚其中 -->
+      <Cooperation v-model="tradeOpen" :initial-tab="tradePanel" :focus-tab="tradeFocusTab" :focus-id="tradeFocusId" @clear-focus="clearTradeFocus" />
       <ProfileDrawer :open="profileOpen" @close="profileOpen = false" @saved="reload" />
       <FeedbackDrawer :open="feedbackOpen" @close="feedbackOpen = false" />
     </template>
@@ -60,8 +59,7 @@ import WorkDetailPage from '../components/WorkDetailPage.vue'
 import ChapterReader from '../components/ChapterReader.vue'
 import MessagePage from '../components/MessagePage.vue'
 import ConversationPage from '../components/ConversationPage.vue'
-import TradeDrawer from '../components/TradeDrawer.vue'
-import TradeDetailModal from '../components/TradeDetailModal.vue'
+import Cooperation from '../views/panels/Cooperation.vue'
 import ProfileDrawer from '../components/ProfileDrawer.vue'
 import FeedbackDrawer from '../components/FeedbackDrawer.vue'
 import { getInfo, isAuthFailure, logout } from '../auth.js'
@@ -84,8 +82,10 @@ const conversationOpen = ref(false)
 const conversationSession = ref(null)
 const tradeOpen = ref(false)
 const tradePanel = ref('inquiry')
+// 通知跳转：focusTab/focusId 由 openTradeFrom 注入，Cooperation 消费后 emit clear-focus 复位，避免普通打开重复触发。
+const tradeFocusTab = ref('')
+const tradeFocusId = ref('')
 const activeCard = ref(null)
-const detailModal = ref(null)
 const reader = ref(null)
 const readerChapters = ref([])
 const unread = reactive({ message: 0, chat: 0, inquiries: 0 })
@@ -108,10 +108,8 @@ const activeInquiries = computed(() => unread.inquiries)
 // 换头像后要重新允许加载。
 watch(() => user.value?.avatar, () => { avatarBroken.value = false })
 
-function closeAll() { messageOpen.value = false; conversationOpen.value = false; tradeOpen.value = false; activeCard.value = null; detailModal.value = null; reader.value = null }
+function closeAll() { messageOpen.value = false; conversationOpen.value = false; tradeOpen.value = false; activeCard.value = null; reader.value = null }
 function openWork(card) { activeCard.value = card || null }
-function openTrade(panel = 'inquiry') { tradePanel.value = panel; tradeOpen.value = true }
-// 原型：交易中心打开时进入消息页要先确认，避免两个浮层状态互相干扰。
 async function openMessagePage() {
   if (tradeOpen.value) {
     try { await ElMessageBox.confirm('当前正在查看交易中心，是否关闭交易中心并进入消息？', '进入消息', { confirmButtonText: '进入消息', cancelButtonText: '取消' }) }
@@ -122,9 +120,17 @@ async function openMessagePage() {
   messageOpen.value = true
 }
 function openConversationPage(sessionId = null) { conversationSession.value = sessionId; conversationOpen.value = true }
-function openTradeFrom(tab) { messageOpen.value = false; openTrade(tab === 'order' ? 'order' : 'inquiry') }
-function openOrderDetail(order) { detailModal.value = { mode: 'order', order } }
-function openContractDetail(order) { detailModal.value = { mode: 'contract', order } }
+function openTrade(panel = 'inquiry') { tradeFocusTab.value = ''; tradeFocusId.value = ''; tradePanel.value = panel; tradeOpen.value = true }
+function clearTradeFocus() { tradeFocusTab.value = ''; tradeFocusId.value = '' }
+// 通知跳转：messageOpen 关闭后带着目标 Tab 与业务主键打开 Cooperation，由其定位到具体记录。
+function openTradeFrom(payload) {
+  messageOpen.value = false
+  const tab = payload?.tab || 'inquiry'
+  if (payload?.bizId != null && payload.bizId !== '') { tradeFocusTab.value = tab; tradeFocusId.value = String(payload.bizId) }
+  else { tradeFocusTab.value = ''; tradeFocusId.value = '' }
+  tradePanel.value = tab
+  tradeOpen.value = true
+}
 // 作品详情页里的「章节预览」：用已加载的章节列表定位当前章。
 function previewChapter(index) {
   const chapters = detail.value?.chapters || []
@@ -142,7 +148,6 @@ async function contactAuthor(work) {
   ElMessage.info('可在交易中心发起询盘后与作者沟通')
   openTrade('inquiry')
 }
-function contactFromOrder(order) { detailModal.value = null; openConversationFor({ workTitle: order?.workTitle }) }
 // 原型的「打开沟通」= 打开与该作者的会话（最终态落在沟通页）。
 // 后端没有现成会话时要先用询盘把 TRADE 会话建出来，否则沟通页始终是空的。
 async function openConversationFor(inquiry) {
@@ -196,7 +201,6 @@ function onDocumentClick() { menuOpen.value = false }
 function onKeydown(event) {
   if (event.key !== 'Escape') return
   reader.value = null
-  detailModal.value = null
   messageOpen.value = false
   tradeOpen.value = false
   profileOpen.value = false

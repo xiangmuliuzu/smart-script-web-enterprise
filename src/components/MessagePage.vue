@@ -23,7 +23,7 @@
             </div>
             <p>{{ item.content }}</p>
             <p v-if="detail[item.messageId]" class="notice-detail">{{ detail[item.messageId] }}</p>
-            <button v-if="item.type === 'TRANSACTION'" class="notice-link" type="button" @click.stop="$emit('open-trade', 'order')">查看订单</button>
+            <button v-if="tradeJumpOf(item)" class="notice-link" type="button" @click.stop="jumpTrade(item)">{{ tradeJumpOf(item).label }}</button>
           </article>
         </div>
       </div>
@@ -39,6 +39,20 @@ import { relativeText } from '../utils/enterprise.js'
 const props = defineProps({ open: Boolean })
 const emit = defineEmits(['close', 'open-trade', 'read'])
 const { api, handleError } = usePortal()
+// 交易域通知（TRANSACTION）按 businessType 映射到 Cooperation 对应 Tab 与按钮文案；
+// 后端通知仅携带 INQUIRY/ORDER/CONTRACT 三类业务主键，会话需从询盘进入故不单独映射。
+const TRADE_JUMP = {
+  INQUIRY: { tab: 'inquiry', label: '查看询盘' },
+  ORDER: { tab: 'order', label: '查看订单' },
+  CONTRACT: { tab: 'contract', label: '查看合同' },
+}
+function tradeJumpOf(item) {
+  return item && item.type === 'TRANSACTION' && item.businessId ? TRADE_JUMP[item.businessType] : null
+}
+function jumpTrade(item) {
+  const jump = tradeJumpOf(item)
+  if (jump) emit('open-trade', { tab: jump.tab, bizId: item.businessId })
+}
 const pending = ref(false)
 const error = ref('')
 const marking = ref(false)

@@ -30,10 +30,11 @@ export const inquiryProgressText = value => inquiryProgress[value] || '采购推
 // 采购进度时间线：后端只有询盘与订单两类事实，用它们推出已完成的节点。
 export const progressIndex = ({ hasOrder = false, orderDone = false, hasQuote = false } = {}) => orderDone ? 4 : hasOrder ? 3 : hasQuote ? 1 : 0
 export const orderStatus = {
-  confirmed: { label: '已确认', tone: 'gold' },
-  escrow_pending: { label: '已托管', tone: 'gold' },
+  confirmed: { label: '待签署', tone: 'gold' },
+  paying: { label: '付款中', tone: 'gold' },
   delivering: { label: '交割中', tone: 'gold' },
   completed: { label: '已完成', tone: '' },
+  escrow_pending: { label: '已托管', tone: 'gold' },
   cancelled: { label: '已取消', tone: 'gray' },
   refunded: { label: '已退款', tone: 'red' }
 }
@@ -63,13 +64,61 @@ export function avatarUrl(raw, apiBase = import.meta.env?.VITE_APP_BASE_API || '
   } else if (!value.startsWith('/') || value.startsWith('//')) {
     return ''
   }
-  const start = resource.search(/\/profile\/(?:upload|avatar)\//)
+  const start = resource.search(/\/profile\/(?:upload|avatar|contract)\//)
   if (start < 0) return value
   resource = resource.slice(start)
   if (resource.includes('\\') || resource.split('/').some(part => part === '.' || part === '..')) return ''
   const root = apiBase.replace(/\/+$/, '').replace(/\/api\/v1$/, '')
   return root + resource
 }
+
+/**
+ * 内容域静态资源归一（已签 PDF / 印章图等 /profile 相对路径），补当前 API 前缀走代理，
+ * 逐段 encode 避免中文文件名浏览器直链 404（与创作者端同一口径）。
+ */
+export function mediaUrl(raw, apiBase = import.meta.env?.VITE_APP_BASE_API || '/dev-api') {
+  if (raw == null || raw === '') return ''
+  let url = String(raw).trim()
+  if (!url) return ''
+  if (/^data:|^blob:/i.test(url)) return url
+  const mediaIndex = url.indexOf('/profile/')
+  if (mediaIndex >= 0) url = url.slice(mediaIndex)
+  const root = String(apiBase || '').replace(/\/+$/, '').replace(/\/api\/v1$/, '')
+  if (url.startsWith('/dev-api/') || url.startsWith('/prod-api/')) {
+    const idx = url.indexOf('/profile/')
+    if (idx >= 0) return url.slice(0, idx) + encodeMediaPath(url.slice(idx))
+    return url
+  }
+  if (root && (url === root || url.startsWith(root + '/'))) return url
+  if (url.startsWith('/') && !url.startsWith('//')) return (root || '') + encodeMediaPath(url)
+  return url
+}
+
+/** 对路径每一段 decode 后再 encode，避免中文未编码或二次编码。 */
+export function encodeMediaPath(path) {
+  return String(path || '').split('/').map(seg => {
+    if (!seg) return ''
+    try { return encodeURIComponent(decodeURIComponent(seg)) }
+    catch { return encodeURIComponent(seg) }
+  }).join('/')
+}
+
+/**
+ * 合同正文（HTML）内的静态资源改写：签名/印章图与签约 PDF 存的是 /profile 相对路径，
+ * iframe srcdoc 以父页面为基址，不补 API 前缀必定 404；逐个 URL 属性走 avatarUrl 归一。
+ */
+export function contractHtml(html) {
+  const value = typeof html === 'string' ? html : ''
+  if (!value) return ''
+  return value.replace(/(src|href|xlink:href)(\s*=\s*)(["'])([^"']+)\3/gi, (whole, attr, eq, quote, raw) => {
+    if (!raw.includes('/profile/')) return whole
+    const fixed = avatarUrl(raw)
+    return fixed ? `${attr}${eq}${quote}${fixed}${quote}` : whole
+  })
+}
+
+// 合同 amount 接口按「元」直返（区别于订单/报价/询盘的「分」），展示不除 100。
+export const contractMoney = value => '¥' + Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 
 // 头像上传前的本地校验，规则与创作者端一致（png/jpg，5 MB）。
 export function validateImage(file) {
