@@ -99,7 +99,7 @@ async function load() {
   pending.value = true
   error.value = ''
   try {
-    sessions.value = await api.value.listChatSessions()
+    sessions.value = await api.value.listChatSessions({ sessionType: 'TRADE' })
     // 优先打开调用方指定的会话（例如从作品详情「联系作者」进入）。
     const target = props.sessionId && sessions.value.find(s => String(s.sessionId) === String(props.sessionId))
     if (target) activeId.value = target.sessionId
