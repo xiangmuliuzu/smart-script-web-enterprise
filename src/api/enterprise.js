@@ -84,8 +84,6 @@ export async function listChatSessions(params = {}) {
 export const listChatMessages = async sessionId => asList(await data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages'))
 export const sendChatMessage = (sessionId, content) => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages', { method: 'POST', body: { msgType: 'TEXT', content } })
 export const readChatSession = sessionId => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/read', { method: 'PUT' })
-// 后端只接受 action=reopen。
-export const reopenChatSession = sessionId => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/status?' + qs({ action: 'reopen' }), { method: 'PUT' })
 export const chatUnreadCount = async () => Number((await data('/api/v1/users/me/chat/unread-count'))?.chatUnread || 0)
 // 发起与平台管理员的沟通会话（GENERAL 平台沟通）；沟通页只列 ADMIN 会话，空列表时靠此按钮破局。
 export const openPlatformChat = () => data('/api/v1/users/me/chat/sessions', { method: 'POST', body: { businessType: 'GENERAL', businessName: '平台沟通' } })

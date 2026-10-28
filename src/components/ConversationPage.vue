@@ -33,9 +33,6 @@
 
         <section class="conversation-main">
           <header class="conversation-head">
-            <button type="button" class="btn ghost small" :disabled="!active || active.status === 2 || reopening" @click="toggleStatus">
-              {{ active?.status === 2 ? '重新打开' : '结束会话' }}
-            </button>
             <b>{{ active?.peerName || '—' }}</b>
             <span>{{ active?.businessName || active?.sessionType || '业务沟通' }}</span>
             <span>{{ active ? (active.status === 2 ? '已结束' : '沟通中') + ' · 最后更新 ' + relativeText(active.lastMessageTime || active.createdAt) : '尚未选择会话' }}</span>
@@ -57,7 +54,6 @@
 </template>
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
 import LoadState from './LoadState.vue'
 import { usePortal } from '../utils/portal.js'
 import { relativeText } from '../utils/enterprise.js'
@@ -73,7 +69,6 @@ const activeId = ref(null)
 const draft = ref('')
 const sending = ref(false)
 const marking = ref(false)
-const reopening = ref(false)
 const starting = ref(false)
 let poll = null
 
@@ -134,18 +129,6 @@ async function markAllRead() {
     sessions.value.forEach(s => { s.unread = 0 })
     emit('read')
   } finally { marking.value = false }
-}
-async function toggleStatus() {
-  if (!active.value) return
-  reopening.value = true
-  try {
-    // 后端只接受 action=reopen；结束会话由平台流程处理，这里明确说明而不是伪造成功。
-    if (active.value.status === 2) {
-      await api.value.reopenChatSession(active.value.sessionId)
-      await load()
-      ElMessage.success('会话已重新打开')
-    } else ElMessage.info('结束会话由平台流程处理，可发送消息向管理员说明诉求')
-  } catch (failure) { handleError(failure) } finally { reopening.value = false }
 }
 // 会话打开期间轻量轮询，保证新消息可见；关闭时立刻停止。
 // sessionId 变化（例如从另一个询盘点「打开沟通」）也要重新选会话，此时 open 可能已经是 true。
