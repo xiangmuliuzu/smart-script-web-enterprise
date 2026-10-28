@@ -12,7 +12,7 @@
             消息 <span class="badge" :style="{ display: messageUnread ? 'inline-grid' : 'none' }">{{ messageUnread }}</span>
           </button>
           <button class="top-action" type="button" data-page-entry="conversation" @click="openConversationPage()">
-            沟通 <span class="badge" :style="{ display: chatUnread ? 'inline-grid' : 'none' }">{{ chatUnread }}</span>
+            平台客服 <span class="badge" :style="{ display: chatUnread ? 'inline-grid' : 'none' }">{{ chatUnread }}</span>
           </button>
           <button class="top-action" type="button" @click="openTrade()">交易中心 <span class="badge">{{ activeInquiries }}</span></button>
           <div class="company account-menu" :data-open="menuOpen" tabindex="0" role="button" :aria-expanded="menuOpen" aria-label="打开账户菜单"
@@ -139,25 +139,11 @@ function previewChapter(index) {
   reader.value = { index, chapterId: chapter?.chapterId, title: chapter?.chapterTitle || `第 ${index + 1} 章` }
 }
 function stepChapter(index) { previewChapter(index) }
-async function contactAuthor(work) {
-  // 有 TRADE 会话就打开对应会话，否则回到工作台提示从询盘进入。
-  const sessions = conversation.value?.sessions || []
-  const matched = sessions.find(s => s.businessName === work.title)
+async function contactAuthor() {
+  // 与作者的交流属于交易范畴：落在交易中心的「会话」Tab，沟通页只保留与平台管理员的记录。
   activeCard.value = null
-  if (matched) { openConversationPage(matched.sessionId); return }
-  ElMessage.info('可在交易中心发起询盘后与作者沟通')
-  openTrade('inquiry')
-}
-// 原型的「打开沟通」= 打开与该作者的会话（最终态落在沟通页）。
-// 后端没有现成会话时要先用询盘把 TRADE 会话建出来，否则沟通页始终是空的。
-async function openConversationFor(inquiry) {
-  tradeOpen.value = false
-  let sessionId = null
-  if (inquiry?.inquiryId) {
-    try { sessionId = (await api.value.openInquiryChat(inquiry.inquiryId))?.sessionId || null }
-    catch (failure) { if (handleError(failure, { silent: true })) return }
-  }
-  openConversationPage(sessionId)
+  ElMessage.info('可在交易中心的「会话」中与作者沟通（需先发起询盘）')
+  openTrade('session')
 }
 async function refreshUnread() {
   try {

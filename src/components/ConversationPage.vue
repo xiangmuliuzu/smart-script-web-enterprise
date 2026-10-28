@@ -2,8 +2,8 @@
   <section id="conversation-page" class="workspace-page conversation-page" :data-open="open" role="dialog" aria-modal="true">
     <header class="workspace-page-head">
       <div class="page-head-copy">
-        <h1>沟通</h1>
-        <p>与平台管理员或关联作品作者进行业务沟通</p>
+        <h1>平台客服</h1>
+        <p>向平台客服反馈问题与跟进处理进度（与作者的交易对话请在交易中心的「会话」中进行）</p>
       </div>
       <button class="workspace-page-close" type="button" data-page-close @click="$emit('close')">关闭</button>
     </header>
@@ -13,19 +13,11 @@
       <div v-else class="conversation-layout">
         <aside class="conversation-sidebar">
           <div class="conversation-filter">
-            <select v-model="filters.type">
-              <option value="all">全部联系人</option>
-              <option value="admin">管理员</option>
-              <option value="author">作者</option>
-            </select>
-            <select v-model="filters.business">
-              <option value="all">全部作品</option>
-              <option v-for="name in businesses" :key="name" :value="name">{{ name }}</option>
-            </select>
+            <button type="button" class="btn light small" :disabled="starting" @click="startChat">{{ starting ? '发起中…' : '发起客服会话' }}</button>
             <button type="button" class="btn light small" :disabled="!unreadCount || marking" @click="markAllRead">全部标记为已读</button>
           </div>
           <div class="conversation-list">
-            <button v-for="session in visibleSessions" :key="session.sessionId" type="button" class="conversation-item"
+            <button v-for="session in sessions" :key="session.sessionId" type="button" class="conversation-item"
                     :data-chat-session="session.sessionId" :data-active="String(session.sessionId === activeId)" data-hidden="false"
                     @click="select(session.sessionId)">
               <span class="conversation-item-main">
@@ -35,7 +27,7 @@
               <span class="conversation-item-preview">{{ session.businessName || session.lastMessage || '业务沟通' }}</span>
               <time>{{ relativeText(session.lastMessageTime || session.createdAt) }}</time>
             </button>
-            <p v-if="!visibleSessions.length" class="rights-note">暂无沟通会话，在作品详情发起询盘后可在这里与作者继续沟通。</p>
+            <p v-if="!sessions.length" class="rights-note">还没有与平台客服的沟通记录，点击上方「发起客服会话」联系平台。</p>
           </div>
         </aside>
 
@@ -82,25 +74,19 @@ const draft = ref('')
 const sending = ref(false)
 const marking = ref(false)
 const reopening = ref(false)
-const filters = ref({ type: 'all', business: 'all' })
+const starting = ref(false)
 let poll = null
 
 const active = computed(() => sessions.value.find(s => String(s.sessionId) === String(activeId.value)) || null)
 const unreadCount = computed(() => sessions.value.reduce((total, s) => total + (s.unread ? 1 : 0), 0))
-const businesses = computed(() => [...new Set(sessions.value.map(s => s.businessName).filter(Boolean))])
-const visibleSessions = computed(() => sessions.value.filter(session => {
-  const isAuthor = String(session.sessionType || '').toUpperCase() === 'TRADE'
-  if (filters.value.type === 'admin' && isAuthor) return false
-  if (filters.value.type === 'author' && !isAuthor) return false
-  return filters.value.business === 'all' || session.businessName === filters.value.business
-}))
 
 async function load() {
   pending.value = true
   error.value = ''
   try {
-    sessions.value = await api.value.listChatSessions({ sessionType: 'TRADE' })
-    // 优先打开调用方指定的会话（例如从作品详情「联系作者」进入）。
+    // 沟通页只保留与平台管理员的交流记录；与作者的 TRADE 会话归属交易中心「会话」Tab。
+    sessions.value = await api.value.listChatSessions({ sessionType: 'ADMIN' })
+    // 优先打开调用方指定的会话（例如带 sessionId 直达沟通页的入口）。
     const target = props.sessionId && sessions.value.find(s => String(s.sessionId) === String(props.sessionId))
     if (target) activeId.value = target.sessionId
     else if (!sessions.value.some(s => String(s.sessionId) === String(activeId.value))) activeId.value = sessions.value[0]?.sessionId || null
@@ -112,6 +98,16 @@ async function load() {
 async function loadMessages() {
   if (!activeId.value) { messages.value = []; return }
   try { messages.value = await api.value.listChatMessages(activeId.value) } catch { messages.value = [] }
+}
+async function startChat() {
+  if (starting.value) return
+  starting.value = true
+  try {
+    const session = await api.value.openPlatformChat()
+    await load()
+    const target = session?.sessionId && sessions.value.find(s => String(s.sessionId) === String(session.sessionId))
+    if (target) await select(target.sessionId)
+  } catch (failure) { handleError(failure) } finally { starting.value = false }
 }
 async function select(id) {
   activeId.value = id
@@ -148,7 +144,7 @@ async function toggleStatus() {
       await api.value.reopenChatSession(active.value.sessionId)
       await load()
       ElMessage.success('会话已重新打开')
-    } else ElMessage.info('结束会话由平台流程处理，可在「消息」中联系平台运营')
+    } else ElMessage.info('结束会话由平台流程处理，可发送消息向管理员说明诉求')
   } catch (failure) { handleError(failure) } finally { reopening.value = false }
 }
 // 会话打开期间轻量轮询，保证新消息可见；关闭时立刻停止。

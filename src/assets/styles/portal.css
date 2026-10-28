@@ -68,6 +68,9 @@ a { color: var(--brand); }
   .conversation-page .workspace-page-body { width: min(1180px, calc(100vw - 48px)); }
   .conversation-page .workspace-page-body { max-height: min(940px, calc(100vh - 112px)); }
   .conversation-page .conversation-layout { min-height: 0; height: min(860px, calc(100vh - 180px)); max-height: min(860px, calc(100vh - 180px)); }
+  /* 行高必须随容器收缩：否则 grid 隐式 auto 行被长消息撑爆，overflow:hidden 把输入区裁到可视区外（用户端实测复现，此处同源修复）。 */
+  .conversation-page .conversation-layout { grid-template-rows: minmax(0, 1fr); }
+  .conversation-page :is(.conversation-main, .conversation-sidebar) { min-height: 0; }
   .conversation-page .conversation-messages { min-height: 0; max-height: none; }
 }
 

@@ -68,7 +68,8 @@ export const getChapter = chapterId => data('/api/v1/content/chapters/' + id(cha
 
 /* ---------------- 消息与沟通 ---------------- */
 export async function listMessages({ pageNum = 1, pageSize = 50, type, includeAnnouncements } = {}) {
-  const result = await data('/api/v1/messages?' + qs({ pageNum, pageSize, type, includeAnnouncements }))
+  // 企业端=买方门户：交易通知只取 BUYER/BOTH（及无受众的通用通知），卖方视角通知（如新询盘）不进此端。
+  const result = await data('/api/v1/messages?' + qs({ pageNum, pageSize, type, includeAnnouncements, portalRole: 'BUYER' }))
   return { total: Number(result?.total || result?.length || 0), list: asList(result).map(item => ({ ...item, isRead: item.read, content: item.summary, createTime: item.createdAt })) }
 }
 export const getMessage = messageId => data('/api/v1/messages/' + id(messageId))
@@ -86,6 +87,8 @@ export const readChatSession = sessionId => data('/api/v1/users/me/chat/sessions
 // 后端只接受 action=reopen。
 export const reopenChatSession = sessionId => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/status?' + qs({ action: 'reopen' }), { method: 'PUT' })
 export const chatUnreadCount = async () => Number((await data('/api/v1/users/me/chat/unread-count'))?.chatUnread || 0)
+// 发起与平台管理员的沟通会话（GENERAL 平台沟通）；沟通页只列 ADMIN 会话，空列表时靠此按钮破局。
+export const openPlatformChat = () => data('/api/v1/users/me/chat/sessions', { method: 'POST', body: { businessType: 'GENERAL', businessName: '平台沟通' } })
 
 /* ---------------- 创作者门户 Cooperation.vue 复用别名（与用户端同名同义，企业端恒为买方） ---------------- */
 // 交易会话列表：会话列表按 sessionType=TRADE 过滤，返回数组（沿用 listChatSessions）。
