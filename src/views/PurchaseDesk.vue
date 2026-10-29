@@ -75,7 +75,7 @@
             <span v-if="!todoPending && !todoError" class="tag red">{{ todos.length }} 项</span>
           </div>
           <LoadState :pending="todoPending" :error="todoError" :retry="loadTodo" />
-          <ul v-if="!todoError" class="side-list">
+          <ul v-if="!todoError && todos.length" class="side-list todo-list" role="region" aria-label="订单待办列表" tabindex="0">
             <li v-for="order in todos" :key="order.orderId" class="interactive-side-item order-todo" role="button" tabindex="0"
                 @click="$emit('open-order', order.orderId)" @keydown.enter.prevent="$emit('open-order', order.orderId)" @keydown.space.prevent="$emit('open-order', order.orderId)">
               <div class="todo-order-head"><b>《{{ order.workTitle || '订单#' + order.orderId }}》</b><em>{{ state(orderStatus, order.status).label }}</em></div>
@@ -213,6 +213,8 @@ onMounted(() => { load(); loadTodo() })
 defineExpose({ load, loadTodo })
 </script>
 <style scoped>
+.todo-list { max-height: min(320px, 35vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.todo-list:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .activity-list summary { cursor: pointer; list-style: none; }
 .activity-list summary::-webkit-details-marker { display: none; }
 .activity-list summary span { margin-left: auto; }
