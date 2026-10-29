@@ -59,10 +59,10 @@
 .enterprise-portal .purchase-group-head { margin: 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .enterprise-portal .purchase-group-head h3 { font-size: 18px; font-weight: 600; }
 .enterprise-portal .purchase-group-head span { font-size: 13px; }
-.enterprise-portal .purchase-group .purchase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 18px; padding-top: 18px; align-items: stretch; }
+.enterprise-portal .purchase-group .purchase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(340px, calc((100% - 36px) / 3)), 1fr)); gap: 18px; padding-top: 18px; align-items: stretch; }
 .enterprise-portal .purchase-group .purchase-card {
   display: grid;
-  grid-template-columns: 108px minmax(0, 1fr);
+  grid-template-columns: 140px minmax(0, 1fr);
   grid-template-rows: 1fr auto;
   min-height: 184px;
   gap: 0;
@@ -74,7 +74,7 @@
 .enterprise-portal .purchase-card:hover { border-color: var(--brand2); background: #f1eee6; }
 .enterprise-portal .purchase-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .enterprise-portal .purchase-card-top { display: contents; }
-.enterprise-portal .purchase-cover-area { position: relative; grid-row: 1 / span 2; display: grid; place-items: center; padding: 0; border: 0; border-right: 1px solid var(--line); background: #e9e5da; }
+.enterprise-portal .purchase-cover-area { position: relative; grid-row: 1 / span 2; display: grid; place-items: center; width: 100%; aspect-ratio: 210 / 297; align-self: start; overflow: hidden; padding: 0; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #e9e5da; }
 .enterprise-portal .purchase-card .work-avatar { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; background: transparent; color: #1b1a1838; font-size: 36px; }
 .enterprise-portal .purchase-status { position: absolute; left: 9px; top: 9px; width: auto; max-width: calc(100% - 18px); padding: 3px 6px; border: 1px solid currentColor; border-radius: 2px; background: var(--bg); font-size: 13px; font-weight: 400; }
 .enterprise-portal .purchase-status.pending { background: var(--bg); }
@@ -142,7 +142,7 @@
   .enterprise-portal .topbar .brand span { display: none; }
   .enterprise-portal .portal-main { padding: 30px 26px 80px; }
   .enterprise-portal .purchase-group .purchase-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
-  .enterprise-portal .purchase-group .purchase-card { grid-template-columns: 92px minmax(0, 1fr); }
+  .enterprise-portal .purchase-group .purchase-card { grid-template-columns: 124px minmax(0, 1fr); }
   .enterprise-portal .purchase-summary { padding: 14px 14px 0; }
   .enterprise-portal .purchase-card-foot { padding: 12px 14px 14px; }
 }
@@ -165,5 +165,5 @@
 }
 @media (max-width: 620px) {
   .enterprise-portal .purchase-group .purchase-grid { grid-template-columns: minmax(0, 1fr); }
-  .enterprise-portal .purchase-group .purchase-card { grid-template-columns: 88px minmax(0, 1fr); }
+  .enterprise-portal .purchase-group .purchase-card { grid-template-columns: 108px minmax(0, 1fr); }
 }
