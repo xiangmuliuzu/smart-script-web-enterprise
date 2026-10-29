@@ -14,7 +14,10 @@
           <button class="top-action" type="button" data-page-entry="conversation" @click="openConversationPage()">
             平台客服 <span class="badge" :style="{ display: chatUnread ? 'inline-grid' : 'none' }">{{ chatUnread }}</span>
           </button>
-          <button class="top-action" type="button" @click="openTrade()">交易中心 <span class="badge">{{ activeInquiries }}</span></button>
+          <button class="top-action" type="button" aria-label="询盘" @click="openTrade('inquiry')">询盘 <span v-if="activeInquiries" class="badge">{{ activeInquiries }}</span></button>
+          <button class="top-action" type="button" @click="openTrade('session')">会话</button>
+          <button class="top-action" type="button" @click="openTrade('order')">订单</button>
+          <button class="top-action" type="button" @click="openTrade('contract')">合同</button>
           <div class="company account-menu" :data-open="menuOpen" tabindex="0" role="button" :aria-expanded="menuOpen" aria-label="打开账户菜单"
                @click.stop="menuOpen = !menuOpen" @keydown.enter.prevent="menuOpen = !menuOpen" @keydown.space.prevent="menuOpen = !menuOpen">
             <span class="company-mark">
@@ -32,7 +35,7 @@
       </header>
 
       <main class="portal-main">
-        <router-view ref="desk" @open-work="openWork" @open-trade="openTrade" />
+        <router-view v-slot="{ Component }"><component :is="Component" ref="desk" @open-work="openWork" @open-trade="openTrade" @open-order="id => openTradeFrom({ tab: 'order', bizId: id })" /></router-view>
       </main>
 
       <!-- 原型最终态的浮层：作品详情页 + 章节阅读器 + 消息页 + 沟通页 + 交易抽屉 + 两个抽屉 + 订单/合同详情 -->
@@ -43,7 +46,7 @@
                      @close="reader = null" @step="stepChapter" />
       <MessagePage ref="messages" :open="messageOpen" @close="messageOpen = false" @read="refreshUnread" @open-trade="openTradeFrom" />
       <ConversationPage ref="conversation" :open="conversationOpen" :session-id="conversationSession" @close="conversationOpen = false" @read="refreshUnread" />
-      <!-- 交易中心统一收敛为用户端四 Tab（询盘/会话/订单/合同）的 Cooperation 抽屉，合同预览/签署内聚其中 -->
+      <!-- 交易入口共用数据和相关业务操作，各入口只显示对应内容。 -->
       <Cooperation v-model="tradeOpen" :initial-tab="tradePanel" :focus-tab="tradeFocusTab" :focus-id="tradeFocusId" @clear-focus="clearTradeFocus" />
       <ProfileDrawer :open="profileOpen" @close="profileOpen = false" @saved="reload" />
       <FeedbackDrawer :open="feedbackOpen" @close="feedbackOpen = false" />
@@ -105,6 +108,7 @@ const auth = computed(() => ({
 const messageUnread = computed(() => unread.message)
 const chatUnread = computed(() => unread.chat)
 const activeInquiries = computed(() => unread.inquiries)
+watch(tradeOpen, visible => { if (!visible) desk.value?.loadTodo?.() })
 // 换头像后要重新允许加载。
 watch(() => user.value?.avatar, () => { avatarBroken.value = false })
 
@@ -112,7 +116,7 @@ function closeAll() { messageOpen.value = false; conversationOpen.value = false;
 function openWork(card) { activeCard.value = card || null }
 async function openMessagePage() {
   if (tradeOpen.value) {
-    try { await ElMessageBox.confirm('当前正在查看交易中心，是否关闭交易中心并进入消息？', '进入消息', { confirmButtonText: '进入消息', cancelButtonText: '取消' }) }
+    try { await ElMessageBox.confirm('当前正在查看交易信息，是否关闭并进入消息？', '进入消息', { confirmButtonText: '进入消息', cancelButtonText: '取消' }) }
     catch { return }
     tradeOpen.value = false
   }
@@ -142,7 +146,7 @@ function stepChapter(index) { previewChapter(index) }
 async function contactAuthor() {
   // 与作者的交流属于交易范畴：落在交易中心的「会话」Tab，沟通页只保留与平台管理员的记录。
   activeCard.value = null
-  ElMessage.info('可在交易中心的「会话」中与作者沟通（需先发起询盘）')
+  ElMessage.info('可在「会话」中与作者沟通（需先发起询盘）')
   openTrade('session')
 }
 async function refreshUnread() {

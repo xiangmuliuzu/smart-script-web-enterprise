@@ -72,15 +72,18 @@
         <div class="side-panel">
           <div class="side-head">
             <h3>待处理事项</h3>
-            <span class="tag red">{{ todos.length }} 项</span>
+            <span v-if="!todoPending && !todoError" class="tag red">{{ todos.length }} 项</span>
           </div>
-          <ul class="side-list">
-            <li v-for="item in todos" :key="item.key" class="interactive-side-item" tabindex="0"
-                @click="$emit('open-trade', item.tab)" @keydown.enter.prevent="$emit('open-trade', item.tab)">
-              <b><span v-if="item.urgent" class="notice-dot"></span>{{ item.title }}</b>
-              <span>{{ item.note }}</span>
+          <LoadState :pending="todoPending" :error="todoError" :retry="loadTodo" />
+          <ul v-if="!todoError" class="side-list">
+            <li v-for="order in todos" :key="order.orderId" class="interactive-side-item order-todo" role="button" tabindex="0"
+                @click="$emit('open-order', order.orderId)" @keydown.enter.prevent="$emit('open-order', order.orderId)" @keydown.space.prevent="$emit('open-order', order.orderId)">
+              <div class="todo-order-head"><b>《{{ order.workTitle || '订单#' + order.orderId }}》</b><em>{{ state(orderStatus, order.status).label }}</em></div>
+              <span>订单号：{{ order.orderNo || '#' + order.orderId }} · {{ money(order.amount) }}</span>
+              <div class="todo-progress"><span v-for="(step, i) in orderSteps" :key="step" :class="{ active: orderStepIndex(order.status) >= i }">{{ step }}</span></div>
             </li>
           </ul>
+          <p v-if="!todoPending && !todoError && !todos.length" class="todo-empty">暂无待处理订单。</p>
         </div>
         <details class="side-panel activity activity-list">
           <summary class="side-head">
@@ -104,13 +107,17 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import LoadState from '../components/LoadState.vue'
 import { usePortal } from '../utils/portal.js'
 import { avatarText, avatarUrl, inquiryProgressText, licenseLabel, money, relativeText, state, inquiryStatus, orderStatus } from '../utils/enterprise.js'
-defineEmits(['open-work', 'open-trade'])
+import { loadTodoOrders, orderSteps, orderStepIndex } from '../utils/orderTodo.js'
+defineEmits(['open-work', 'open-trade', 'open-order'])
 const { api, handleError } = usePortal()
 const pending = ref(true)
 const error = ref('')
 const orders = ref([])
 const inquiries = ref([])
 const quotes = ref([])
+const todos = ref([])
+const todoPending = ref(true)
+const todoError = ref('')
 const works = ref({})
 const brokenCovers = reactive({})
 const filters = reactive({ search: '', auth: 'all', status: 'all', genre: 'all', sort: 'newest' })
@@ -130,7 +137,7 @@ function buildCards() {
       licenseType: order.licenseType, amount: order.amount, order, orderStatus: order.status,
       hasQuote: quotes.value.some(q => String(q.inquiryId) === String(order.inquiryId)),
       workType: [work.genreName, licenseLabel(order.licenseType)].filter(Boolean).join(' · '),
-      summary: work.summary || '已生成采购订单，可在交易中心查看订单状态与交付进度。',
+      summary: work.summary || '已生成采购订单，可在订单中查看状态与交付进度。',
       dateLabel: '交易日期：' + (order.createdAt || '').slice(0, 10),
       foot: amount
     })
@@ -168,20 +175,12 @@ const visibleGroups = computed(() => {
 })
 const visibleCount = computed(() => visibleGroups.value.reduce((total, group) => total + group.cards.length, 0))
 
-// 待处理事项只列出后端确有状态可跟进的项，不补演示条目。
-const todos = computed(() => {
-  const items = []
-  for (const inquiry of inquiries.value.filter(i => ['pending', 'quoted'].includes(i.status)).slice(0, 2)) {
-    items.push({ key: 'inquiry-' + inquiry.inquiryId, tab: 'inquiry', urgent: inquiry.status === 'pending', title: '跟进《' + (inquiry.workTitle || inquiry.workId) + '》询盘', note: '作者：' + (inquiry.sellerName || '待确认') + ' · ' + relativeText(inquiry.updatedAt || inquiry.createdAt) })
-  }
-  for (const quote of quotes.value.filter(q => q.status === 'pending').slice(0, 1)) {
-    items.push({ key: 'quote-' + quote.quoteId, tab: 'inquiry', urgent: true, title: '确认《' + (quote.workTitle || quote.inquiryNo || '作品') + '》报价', note: licenseLabel(quote.licenseType) + ' · ' + money(quote.price) })
-  }
-  for (const order of orders.value.filter(o => o.status === 'confirmed').slice(0, 2)) {
-    items.push({ key: 'order-' + order.orderId, tab: 'order', urgent: false, title: '跟进《' + (order.workTitle || order.orderNo) + '》订单', note: money(order.amount) + ' · ' + state(orderStatus, order.status).label })
-  }
-  return items.slice(0, 4)
-})
+async function loadTodo() {
+  todoPending.value = true; todoError.value = ''
+  try { todos.value = await loadTodoOrders(api.value) }
+  catch (failure) { if (!handleError(failure, { silent: true })) todoError.value = failure.message || '订单加载失败' }
+  finally { todoPending.value = false }
+}
 const activities = computed(() => {
   const rows = [
     ...orders.value.map(o => ({ at: o.updatedAt || o.createdAt, kind: 'order', title: '《' + (o.workTitle || o.orderNo) + '》订单状态更新', note: state(orderStatus, o.status).label })),
@@ -210,8 +209,8 @@ async function load() {
     if (!handleError(failure, { silent: true })) error.value = failure.message || '加载采购数据失败'
   } finally { pending.value = false }
 }
-onMounted(load)
-defineExpose({ load })
+onMounted(() => { load(); loadTodo() })
+defineExpose({ load, loadTodo })
 </script>
 <style scoped>
 .activity-list summary { cursor: pointer; list-style: none; }
@@ -220,4 +219,11 @@ defineExpose({ load })
 .activity-list summary::after { content: '⌄'; color: var(--muted); font-size: 16px; }
 .activity-list[open] summary::after { transform: rotate(180deg); }
 .activity-list summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.todo-order-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.todo-order-head b { min-width: 0; overflow-wrap: anywhere; }
+.todo-order-head em { flex: none; border-radius: 10px; padding: 2px 7px; background: #ecf5ff; color: #409eff; font-size: 12px; font-style: normal; }
+.todo-progress { display: flex; gap: 3px; margin-top: 10px; }
+.todo-progress span { flex: 1; margin: 0; border-top: 2px solid #e4e7ed; padding-top: 4px; text-align: center; font-size: 10px; color: #909399; }
+.todo-progress span.active { border-color: #409eff; color: #409eff; }
+.todo-empty { color: var(--muted); font-size: 13px; }
 </style>
