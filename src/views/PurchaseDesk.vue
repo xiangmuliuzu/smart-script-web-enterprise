@@ -82,11 +82,11 @@
             </li>
           </ul>
         </div>
-        <div class="side-panel activity">
-          <div class="side-head">
+        <details class="side-panel activity activity-list">
+          <summary class="side-head">
             <h3>采购动态</h3>
             <span>最近 7 天</span>
-          </div>
+          </summary>
           <ul class="side-list">
             <li v-for="item in activities" :key="item.key" class="interactive-side-item" tabindex="0"
                 @click="$emit('open-trade', item.tab || 'order')" @keydown.enter.prevent="$emit('open-trade', item.tab || 'order')">
@@ -94,7 +94,7 @@
               <span>{{ item.note }}</span>
             </li>
           </ul>
-        </div>
+        </details>
       </aside>
     </div>
   </section>
@@ -213,3 +213,11 @@ async function load() {
 onMounted(load)
 defineExpose({ load })
 </script>
+<style scoped>
+.activity-list summary { cursor: pointer; list-style: none; }
+.activity-list summary::-webkit-details-marker { display: none; }
+.activity-list summary span { margin-left: auto; }
+.activity-list summary::after { content: '⌄'; color: var(--muted); font-size: 16px; }
+.activity-list[open] summary::after { transform: rotate(180deg); }
+.activity-list summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+</style>
