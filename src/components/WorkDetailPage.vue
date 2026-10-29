@@ -11,7 +11,7 @@
       <LoadState v-if="pending || error" :pending="pending" :error="error" :retry="load" />
       <template v-else-if="work">
         <div class="work-detail-top">
-          <div class="work-detail-cover">{{ avatarText(work.title) }}</div>
+          <div class="work-detail-cover"><img v-if="cover && !coverBroken" :src="cover" alt="作品封面" @error="coverBroken = true"><template v-else>{{ avatarText(work.title) }}</template></div>
           <div>
             <h2>{{ work.title }}</h2>
             <div class="work-detail-meta">
@@ -92,7 +92,7 @@
 import { computed, ref, watch } from 'vue'
 import LoadState from './LoadState.vue'
 import { usePortal } from '../utils/portal.js'
-import { avatarText, dayText, episodeText, genreText, licenseLabel, money, orderStatus, progressIndex as stepIndex, state } from '../utils/enterprise.js'
+import { avatarText, avatarUrl, dayText, episodeText, genreText, licenseLabel, money, orderStatus, progressIndex as stepIndex, state } from '../utils/enterprise.js'
 
 const props = defineProps({ open: Boolean, workId: { type: [Number, String], default: null }, purchase: { type: Object, default: null }, status: { type: String, default: '购买中' } })
 defineEmits(['close', 'preview', 'contact', 'open-contract'])
@@ -100,6 +100,8 @@ const { api, handleError } = usePortal()
 const pending = ref(false)
 const error = ref('')
 const work = ref(null)
+const coverBroken = ref(false)
+const cover = computed(() => avatarUrl(work.value?.cover) || props.purchase?.cover || '')
 const chapters = ref([])
 const order = computed(() => props.purchase?.order || null)
 const purchased = computed(() => props.status === '已购买')
@@ -116,6 +118,7 @@ async function load() {
   if (!props.workId) { work.value = null; chapters.value = []; return }
   pending.value = true
   error.value = ''
+  coverBroken.value = false
   try {
     work.value = await api.value.getWork(props.workId)
     // 章节列表失败不该挡住作品信息，缺失时只显示未开放试读。

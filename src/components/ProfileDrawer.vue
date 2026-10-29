@@ -165,7 +165,7 @@ const stepUpToken = ref('')
 const phoneError = ref('')
 const phoneSending = ref(false)
 const countdown = ref(0)
-const deviceId = crypto.randomUUID()
+const deviceId = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('')
 let countdownTimer
 const avatar = computed(() => avatarUrl(form.avatar))
 const realNameStatusValue = computed(() => realName.value?.status || 'NOT_SUBMITTED')

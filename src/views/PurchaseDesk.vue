@@ -47,7 +47,8 @@
                          @keydown.enter.prevent="$emit('open-work', card)" @keydown.space.prevent="$emit('open-work', card)">
                   <div class="purchase-card-top">
                     <div class="purchase-cover-area">
-                      <div class="work-avatar">{{ card.mark }}</div>
+                      <img v-if="card.cover && !brokenCovers[card.cover]" :src="card.cover" alt="" @error="brokenCovers[card.cover] = true">
+                      <div v-else class="work-avatar">{{ card.mark }}</div>
                       <span class="purchase-status" :class="{ pending: card.status === '购买中' }">{{ card.status }}</span>
                     </div>
                     <div class="purchase-summary">
@@ -102,7 +103,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import LoadState from '../components/LoadState.vue'
 import { usePortal } from '../utils/portal.js'
-import { avatarText, inquiryProgressText, licenseLabel, money, relativeText, state, inquiryStatus, orderStatus } from '../utils/enterprise.js'
+import { avatarText, avatarUrl, inquiryProgressText, licenseLabel, money, relativeText, state, inquiryStatus, orderStatus } from '../utils/enterprise.js'
 defineEmits(['open-work', 'open-trade'])
 const { api, handleError } = usePortal()
 const pending = ref(true)
@@ -111,6 +112,7 @@ const orders = ref([])
 const inquiries = ref([])
 const quotes = ref([])
 const works = ref({})
+const brokenCovers = reactive({})
 const filters = reactive({ search: '', auth: 'all', status: 'all', genre: 'all', sort: 'newest' })
 
 const genres = computed(() => [...new Set(Object.values(works.value).map(w => w.genreName).filter(Boolean))])
@@ -122,7 +124,7 @@ function buildCards() {
     const amount = money(order.amount)
     cards.push({
       key: 'order-' + order.orderId, workId: order.workId, title: order.workTitle || '作品 #' + order.workId,
-      mark: avatarText(order.workTitle),
+      mark: avatarText(order.workTitle), cover: avatarUrl(order.workCover || work.cover),
       genre: work.genreName || '题材待确认', auth: order.licenseType === 'exclusive' ? '独家' : '非独家',
       status: '已购买', date: (order.createdAt || '').slice(0, 10), source: 'order', id: order.orderId,
       licenseType: order.licenseType, amount: order.amount, order, orderStatus: order.status,
@@ -138,7 +140,7 @@ function buildCards() {
     const quote = quotes.value.find(q => String(q.inquiryId) === String(inquiry.inquiryId) && q.status !== 'rejected')
     cards.push({
       key: 'inquiry-' + inquiry.inquiryId, workId: inquiry.workId, title: inquiry.workTitle || '作品 #' + inquiry.workId,
-      mark: avatarText(inquiry.workTitle),
+      mark: avatarText(inquiry.workTitle), cover: avatarUrl(inquiry.workCover || work.cover),
       genre: work.genreName || '题材待确认', auth: inquiry.licenseType === 'exclusive' ? '独家' : '非独家',
       status: '购买中', date: (inquiry.createdAt || '').slice(0, 10), source: 'inquiry', id: inquiry.inquiryId,
       licenseType: inquiry.licenseType, amount: quote?.price, hasQuote: !!quote,
