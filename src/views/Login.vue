@@ -22,7 +22,7 @@
           <template v-if="mode === 'login'">
             <form @submit.prevent="submit">
               <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="submit">
-                <el-form-item label="个人账号" prop="username"><el-input v-model="form.username" placeholder="请输入用户名或手机号" autocomplete="username" size="large" /></el-form-item>
+                <el-form-item label="个人账号" prop="username"><el-input v-model="form.username" placeholder="请输入用户名、手机号或邮箱" autocomplete="username" size="large" /></el-form-item>
                 <el-form-item label="密码" prop="password"><el-input v-model="form.password" type="password" placeholder="请输入密码" show-password autocomplete="current-password" size="large" /></el-form-item>
                 <el-form-item v-if="captchaEnabled" label="验证码">
                   <div class="captcha-row">
@@ -65,11 +65,11 @@ const mode = ref('login')
 const heading = computed(() => (mode.value === 'register' ? '注册个人账号' : mode.value === 'reset' ? '找回密码' : mode.value === 'sms' ? '短信登录' : '登录个人中心'))
 const subheading = computed(() =>
   mode.value === 'register'
-    ? '用手机号注册个人账号，注册后直接进入版权采购工作台。'
+    ? '用手机号或邮箱注册个人账号，注册后直接进入版权采购工作台。'
     : mode.value === 'reset'
-      ? '通过绑定手机号接收短信验证码，重置登录密码。'
+      ? '通过绑定手机号或邮箱接收验证码，重置登录密码。'
       : mode.value === 'sms'
-        ? '使用手机号和验证码登录，未注册手机号验证后将自动创建账号。'
+        ? '使用手机号或邮箱和验证码登录，未注册账号验证后将自动创建账号。'
         : '使用个人账号进入版权采购工作台。'
 )
 async function onSmsLoggedIn() {
@@ -108,7 +108,7 @@ const captchaEnabled = ref(true)
 const captchaReady = ref(false)
 const captchaImage = ref('')
 const error = ref('')
-const rules = { username: [{ validator: (rule, value, callback) => callback(value?.trim() ? undefined : new Error('请输入用户名或手机号')), trigger: 'blur' }], password: [{ required: true, message: '请输入密码', trigger: 'blur' }] }
+const rules = { username: [{ validator: (rule, value, callback) => callback(value?.trim() ? undefined : new Error('请输入用户名、手机号或邮箱')), trigger: 'blur' }], password: [{ required: true, message: '请输入密码', trigger: 'blur' }] }
 async function refreshCaptcha() {
   if (captchaLoading.value) return
   captchaLoading.value = true

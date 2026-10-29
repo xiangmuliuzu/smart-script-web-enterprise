@@ -66,6 +66,10 @@ export async function sendSmsCode({ phone, scene }) {
   })
 }
 
+export async function sendEmailCode(email, scene = 'REGISTER') {
+  return request('/api/v1/auth/email/send', { method: 'POST', authenticated: false, body: { email: email.trim().toLowerCase(), ...(scene === 'REGISTER' ? {} : { scene }) } })
+}
+
 /** 注册个人账号：注册即完成手机号校验，服务端会同时记录当前协议版本。 */
 export async function register({ phone, code, password }) {
   const agreements = await getAgreements()
@@ -73,7 +77,7 @@ export async function register({ phone, code, password }) {
     method: 'POST',
     authenticated: false,
     body: {
-      phone,
+      ...(phone.includes('@') ? { email: phone.trim().toLowerCase() } : { phone }),
       code,
       password,
       deviceId: PC_DEVICE_ID,
@@ -85,7 +89,7 @@ export async function register({ phone, code, password }) {
 
 /** 通过手机号 + 短信验证码重置密码；成功后该账号已有的 App 会话会被服务端吊销。 */
 export async function resetPassword({ phone, code, newPassword }) {
-  return request('/api/v1/auth/password/reset', { method: 'POST', authenticated: false, body: { phone, code, newPassword } })
+  return request('/api/v1/auth/password/reset', { method: 'POST', authenticated: false, body: { ...(phone.includes('@') ? { email: phone.trim().toLowerCase() } : { phone }), code, newPassword } })
 }
 
 export async function getCaptcha() {
@@ -109,7 +113,7 @@ export async function smsLogin({ phone, code }) {
     method: 'POST',
     authenticated: false,
     body: {
-      phone,
+      ...(phone.includes('@') ? { email: phone.trim().toLowerCase() } : { phone }),
       code,
       deviceId: PC_DEVICE_ID,
       deviceName: PC_DEVICE_NAME,

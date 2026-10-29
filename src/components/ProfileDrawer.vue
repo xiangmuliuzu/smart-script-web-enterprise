@@ -109,12 +109,12 @@
         <button class="close" type="button" @click="closePhone">×</button>
       </div>
       <div class="drawer-body">
-        <p class="rights-note">{{ phoneStep === 1 ? '先验证当前绑定手机，验证后再绑定新号码。' : '当前手机已验证，请填写新手机号与验证码。' }}</p>
+        <p class="rights-note">{{ phoneStep === 1 ? '先通过已绑定手机号或邮箱验证身份，再绑定新号码。' : '身份已验证，请填写新手机号与验证码。' }}</p>
         <form @submit.prevent="confirmPhone">
-          <div v-if="phoneStep === 1" class="field"><label>当前手机</label><input :value="profile?.phoneMasked || '服务端绑定的手机'" disabled></div>
+          <div v-if="phoneStep === 1" class="field"><label>当前账号</label><input :value="profile?.emailMasked || profile?.phoneMasked || '验证码将发送至绑定手机号或邮箱'" disabled></div>
           <div v-else class="field"><label>新手机号</label><input v-model="newPhone" inputmode="tel" maxlength="11" placeholder="请输入新手机号" :disabled="phoneSending"></div>
           <div class="field">
-            <label>短信验证码</label>
+            <label>验证码</label>
             <div class="captcha-row">
               <input v-model="phoneCode" inputmode="numeric" maxlength="6" placeholder="6 位验证码" :disabled="phoneSending">
               <button type="button" class="btn ghost small" :disabled="phoneSending || countdown > 0" @click="sendPhoneCode">{{ countdown > 0 ? countdown + ' 秒后重试' : '获取验证码' }}</button>
