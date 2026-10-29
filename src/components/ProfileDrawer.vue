@@ -58,17 +58,8 @@
               <label>身份证号</label>
               <input v-model="identity.idNumber" maxlength="18" autocomplete="off" placeholder="请输入身份证号">
             </div>
-            <div class="field">
-              <label>证件照片（正面 / 反面）</label>
-              <label class="btn light small upload-control">
-                <input type="file" accept="image/png,image/jpeg" multiple :disabled="materialUploading || verifying"
-                       @change="uploadMaterials($event.target.files); $event.target.value = ''">
-                <span>{{ materialUploading ? '上传中…' : '选择证件照片' }}</span>
-              </label>
-              <p class="rights-note">{{ materialNames.join('、') || '请选择两张证件照片，每张不超过 5 MB' }}</p>
-            </div>
             <p v-if="identityError" class="form-error" role="alert">{{ identityError }}</p>
-            <button class="btn small" style="margin-top:12px" :disabled="verifying || materialUploading">{{ verifying ? '提交中…' : '提交认证' }}</button>
+            <button class="btn small" style="margin-top:12px" :disabled="verifying">{{ verifying ? '提交中…' : '提交认证' }}</button>
           </form>
           <hr style="border:0;border-top:1px solid var(--line);margin:28px 0">
           <h3>账号安全</h3>
@@ -154,13 +145,11 @@ const error = ref('')
 const saving = ref(false)
 const uploading = ref(false)
 const verifying = ref(false)
-const materialUploading = ref(false)
 const identityError = ref('')
 const profile = ref(null)
 const realName = ref(null)
 const form = reactive({ nickname: '', bio: '', avatar: '' })
-const identity = reactive({ realName: '', idNumber: '', materialRefs: [] })
-const materialNames = ref([])
+const identity = reactive({ realName: '', idNumber: '' })
 // 头像地址失效时回落汉字圆标，避免破图图标与 alt 文案溢出。
 const broken = ref(false)
 // 账号安全：修改密码与换绑手机，各自一个模态层，逻辑与创作者端一致。
@@ -211,8 +200,7 @@ async function load() {
   } finally { pending.value = false }
 }
 function resetIdentity() {
-  Object.assign(identity, { realName: '', idNumber: '', materialRefs: [] })
-  materialNames.value = []
+  Object.assign(identity, { realName: '', idNumber: '' })
   identityError.value = ''
 }
 async function pickAvatar(file) {
@@ -245,51 +233,19 @@ async function save() {
     await load()
   } catch (failure) { handleError(failure) } finally { saving.value = false }
 }
-// 证件按后端要求传两张（正/反面），服务端只保留首张引用并校验图片真实格式。
-async function uploadMaterials(files) {
-  if (materialUploading.value || verifying.value) return
-  const list = [...(files || [])]
-  // 只清材料，不能动 realName/idNumber：用户通常先填姓名再选照片。
-  identity.materialRefs = []
-  materialNames.value = []
-  identityError.value = ''
-  if (list.length !== 2) { identityError.value = '请选择正反面两张证件照片'; return }
-  for (const file of list) {
-    const issue = validateImage(file)
-    if (issue) { identityError.value = issue; return }
-  }
-  materialUploading.value = true
-  try {
-    const refs = []
-    for (const file of list) {
-      const result = await api.value.uploadRealNameMaterial(file)
-      if (!result?.materialRef) throw new Error('证件上传响应缺少材料引用，请重试')
-      refs.push(result.materialRef)
-    }
-    identity.materialRefs = refs
-    materialNames.value = list.map(file => file.name)
-  } catch (failure) {
-    identity.materialRefs = []
-    materialNames.value = []
-    identityError.value = failure.message || '证件照片上传失败，请重试'
-  } finally { materialUploading.value = false }
-}
 async function verify() {
-  if (verifying.value || materialUploading.value) return
+  if (verifying.value) return
   identityError.value = ''
   if (identity.realName.trim().length < 2) { identityError.value = '请输入真实姓名'; return }
-  // 后端同时接受 15 位旧证与 18 位新证，这里不额外收窄。
-  if (!/^(\d{15}|\d{17}[0-9Xx])$/.test(identity.idNumber.trim())) { identityError.value = '请输入有效的身份证号'; return }
-  if (!identity.materialRefs.length) { identityError.value = '请先上传证件正反面照片'; return }
+  if (!/^\d{17}[0-9Xx]$/.test(identity.idNumber.trim())) { identityError.value = '请输入有效的 18 位身份证号'; return }
   verifying.value = true
   try {
     realName.value = await api.value.submitRealName({
       realName: identity.realName.trim(),
-      idNumber: identity.idNumber.trim(),
-      materialRefs: identity.materialRefs
+      idNumber: identity.idNumber.trim()
     }, realNameStatusValue.value === 'REJECTED')
     resetIdentity()
-    ElMessage.success('实名申请已提交，平台审核通过后即可继续采购流程')
+    ElMessage.success('实名核验已完成')
     emit('saved')
   } catch (failure) {
     identityError.value = failure.message || '提交失败，请稍后重试'

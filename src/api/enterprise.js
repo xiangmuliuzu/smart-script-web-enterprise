@@ -108,12 +108,6 @@ export const uploadAvatar = file => {
   return data('/api/v1/users/me/avatar', { method: 'POST', body: form })
 }
 export const getRealName = () => data('/api/v1/users/me/real-name')
-// 证件材料上传：App 域端点，响应 { materialRef }，其值原样作为提交时的材料引用。
-export const uploadRealNameMaterial = file => {
-  const form = new FormData()
-  form.append('file', file)
-  return data('/api/v1/users/me/real-name/material', { method: 'POST', body: form })
-}
 // 驳回后重提走 /resubmit；两条路径共享同一状态机（PENDING/APPROVED 均返回 409）。
 export const submitRealName = (form, resubmit = false) => data('/api/v1/users/me/real-name' + (resubmit ? '/resubmit' : ''), { method: 'POST', body: form })
 /* ---------------- 账号安全 ---------------- */
