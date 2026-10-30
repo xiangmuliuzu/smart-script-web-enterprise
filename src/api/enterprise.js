@@ -54,8 +54,25 @@ export const switchContractToTemplate = (contractId, templateId) => data('/api/v
 
 /* ---------------- 交易会话定型文与印章（与 APP/创作者端同源） ---------------- */
 export const listTradeTemplates = async () => asList(await data('/api/v1/users/me/chat/trade-templates'))
-// 印章：签约时可选已审核通过的印章（与版权印章同端点）。
+// 印章：与 App / 创作者端共用 /api/v1/content/copyright-seals；签约时筛审核通过且启用中的印章。
+const sealPath = sealId => '/api/v1/content/copyright-seals/' + id(sealId)
 export const listMySeals = async () => asList(await data('/api/v1/content/copyright-seals'))
+export const listSeals = listMySeals
+export const getSeal = sealId => data(sealPath(sealId))
+export const createSeal = form => data('/api/v1/content/copyright-seals', {
+  method: 'POST',
+  body: { sealName: form.sealName, sealImageUrl: form.sealImageUrl, materialUrls: form.materialUrls || '' }
+})
+export const updateSeal = (sealId, form) => data(sealPath(sealId), { method: 'PUT', body: form })
+export const disableSeal = sealId => data(sealPath(sealId) + '/disable', { method: 'PUT' })
+export const deleteSeal = sealId => data(sealPath(sealId), { method: 'DELETE' })
+// 印章图 / 审核材料：走 content/upload，type=material（与 App 一致）。
+export const upload = (file, purpose = 'seal') => {
+  const body = new FormData()
+  body.append('file', file)
+  if (purpose === 'seal') body.append('type', 'material')
+  return data('/api/v1/content/upload', { method: 'POST', body })
+}
 
 /* ---------------- 作品（内容市场） ---------------- */
 export async function listWorks({ keyword, categoryId, sort, page = 1, pageSize = 12 } = {}) {

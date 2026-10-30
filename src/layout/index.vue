@@ -18,6 +18,7 @@
           <button class="top-action" type="button" @click="openTrade('session')">会话</button>
           <button class="top-action" type="button" @click="openTrade('order')">订单</button>
           <button class="top-action" type="button" @click="openTrade('contract')">合同</button>
+          <button class="top-action" type="button" @click="openSeal">印章</button>
           <div class="company account-menu" :data-open="menuOpen" tabindex="0" role="button" :aria-expanded="menuOpen" aria-label="打开账户菜单"
                @click.stop="menuOpen = !menuOpen" @keydown.enter.prevent="menuOpen = !menuOpen" @keydown.space.prevent="menuOpen = !menuOpen">
             <span class="company-mark">
@@ -48,6 +49,11 @@
       <ConversationPage ref="conversation" :open="conversationOpen" :session-id="conversationSession" @close="conversationOpen = false" @read="refreshUnread" />
       <!-- 交易入口共用数据和相关业务操作，各入口只显示对应内容。 -->
       <Cooperation v-model="tradeOpen" :initial-tab="tradePanel" :focus-tab="tradeFocusTab" :focus-id="tradeFocusId" @clear-focus="clearTradeFocus" />
+      <PortalLayer v-model="sealOpen" title="印章" wide>
+        <div class="panel-content seal-drawer-body">
+          <SealPanel />
+        </div>
+      </PortalLayer>
       <ProfileDrawer :open="profileOpen" @close="profileOpen = false" @saved="reload" />
       <FeedbackDrawer :open="feedbackOpen" @close="feedbackOpen = false" />
     </template>
@@ -63,6 +69,8 @@ import ChapterReader from '../components/ChapterReader.vue'
 import MessagePage from '../components/MessagePage.vue'
 import ConversationPage from '../components/ConversationPage.vue'
 import Cooperation from '../views/panels/Cooperation.vue'
+import SealPanel from '../views/panels/SealPanel.vue'
+import PortalLayer from '../components/PortalLayer.vue'
 import ProfileDrawer from '../components/ProfileDrawer.vue'
 import FeedbackDrawer from '../components/FeedbackDrawer.vue'
 import { getInfo, isAuthFailure, logout } from '../auth.js'
@@ -85,6 +93,7 @@ const conversationOpen = ref(false)
 const conversationSession = ref(null)
 const tradeOpen = ref(false)
 const tradePanel = ref('inquiry')
+const sealOpen = ref(false)
 // 通知跳转：focusTab/focusId 由 openTradeFrom 注入，Cooperation 消费后 emit clear-focus 复位，避免普通打开重复触发。
 const tradeFocusTab = ref('')
 const tradeFocusId = ref('')
@@ -112,19 +121,21 @@ watch(tradeOpen, visible => { if (!visible) desk.value?.loadTodo?.() })
 // 换头像后要重新允许加载。
 watch(() => user.value?.avatar, () => { avatarBroken.value = false })
 
-function closeAll() { messageOpen.value = false; conversationOpen.value = false; tradeOpen.value = false; activeCard.value = null; reader.value = null }
+function closeAll() { messageOpen.value = false; conversationOpen.value = false; tradeOpen.value = false; sealOpen.value = false; activeCard.value = null; reader.value = null }
 function openWork(card) { activeCard.value = card || null }
 async function openMessagePage() {
-  if (tradeOpen.value) {
+  if (tradeOpen.value || sealOpen.value) {
     try { await ElMessageBox.confirm('当前正在查看交易信息，是否关闭并进入消息？', '进入消息', { confirmButtonText: '进入消息', cancelButtonText: '取消' }) }
     catch { return }
     tradeOpen.value = false
+    sealOpen.value = false
   }
   conversationOpen.value = false
   messageOpen.value = true
 }
 function openConversationPage(sessionId = null) { conversationSession.value = sessionId; conversationOpen.value = true }
-function openTrade(panel = 'inquiry') { tradeFocusTab.value = ''; tradeFocusId.value = ''; tradePanel.value = panel; tradeOpen.value = true }
+function openTrade(panel = 'inquiry') { sealOpen.value = false; tradeFocusTab.value = ''; tradeFocusId.value = ''; tradePanel.value = panel; tradeOpen.value = true }
+function openSeal() { tradeOpen.value = false; sealOpen.value = true }
 function clearTradeFocus() { tradeFocusTab.value = ''; tradeFocusId.value = '' }
 // 通知跳转：messageOpen 关闭后带着目标 Tab 与业务主键打开 Cooperation，由其定位到具体记录。
 function openTradeFrom(payload) {
@@ -193,6 +204,7 @@ function onKeydown(event) {
   reader.value = null
   messageOpen.value = false
   tradeOpen.value = false
+  sealOpen.value = false
   profileOpen.value = false
   feedbackOpen.value = false
 }
