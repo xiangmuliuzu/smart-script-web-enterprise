@@ -27,8 +27,9 @@ export async function listOrders({ status, pageNum = 1, pageSize = 10 } = {}) {
   const result = await data('/api/v1/trade/order/list?' + qs({ role: 'buyer', status, pageNum, pageSize }))
   return { total: Number(result?.total || 0), list: asList(result) }
 }
-// 买方付款：paying → delivering（无需 body）。
+// 发起支付宝沙箱付款，并由服务端核验支付结果。
 export const payOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay', { method: 'POST' })
+export const confirmSandboxPayment = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay/confirm', { method: 'POST' })
 // 买方确认收货：delivering → completed，写入作者收益。
 export const completeOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/complete', { method: 'POST' })
 // 取消订单：仅 confirmed 可取消，买卖双方任一方可发起；reason 选填，走 query 参数。
