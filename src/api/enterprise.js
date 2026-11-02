@@ -52,6 +52,13 @@ export const uploadContractSourcePdf = (contractId, file) => {
 }
 export const switchContractToTemplate = (contractId, templateId) => data('/api/v1/trade/contracts/' + id(contractId) + '/source-pdf/off', { method: 'PUT', body: { templateId } })
 
+/* ---------------- 买方版权（确认收货后的交割 cert；只读预览/下载） ---------------- */
+export async function listBuyerCopyrights({ keyword, pageNum = 1, pageSize = 10 } = {}) {
+  const result = await data('/api/v1/trade/copyright/list?' + qs({ keyword, pageNum, pageSize }))
+  return { total: Number(result?.total || 0), list: asList(result) }
+}
+export const getBuyerCopyright = fileId => data('/api/v1/trade/copyright/' + id(fileId))
+
 /* ---------------- 交易会话定型文与印章（与 APP/创作者端同源） ---------------- */
 export const listTradeTemplates = async () => asList(await data('/api/v1/users/me/chat/trade-templates'))
 // 印章：与 App / 创作者端共用 /api/v1/content/copyright-seals；签约时筛审核通过且启用中的印章。
