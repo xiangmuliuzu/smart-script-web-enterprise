@@ -11,7 +11,7 @@
       <LoadState v-if="pending || error" :pending="pending" :error="error" :retry="load" />
       <template v-else-if="work">
         <div class="work-detail-top">
-          <div class="work-detail-cover"><img v-if="cover && !coverBroken" :src="cover" alt="作品封面" @error="coverBroken = true"><template v-else>{{ avatarText(work.title) }}</template></div>
+          <div class="work-detail-cover" :class="{ 'script-cover': !(cover && !coverBroken) }"><img v-if="cover && !coverBroken" :src="cover" alt="作品封面" @error="coverBroken = true"><template v-else><span class="script-slip">{{ work.title }}</span><span class="bg-glyph" aria-hidden="true">{{ avatarText(work.title) }}</span></template></div>
           <div>
             <h2>{{ work.title }}</h2>
             <div class="work-detail-meta">
@@ -50,7 +50,7 @@
           <aside class="work-detail-block">
             <h3>采购进度</h3>
             <div class="work-detail-block-body">
-              <ol class="work-progress">
+              <ol class="work-progress" :data-tone="progressIndex >= 3 ? 'indigo' : progressIndex >= 2 ? 'ochre' : 'cinnabar'">
                 <li v-for="(step, index) in progress" :key="step.title" :class="index < progressIndex ? 'done' : index === progressIndex ? 'current' : ''">
                   <b>{{ step.title }}</b>
                   <span>{{ index < progressIndex ? '已完成' : index === progressIndex ? '当前处理节点' : '待处理' }}</span>
@@ -70,7 +70,7 @@
                 <dt>授权期限</dt>
                 <dd>待确认</dd>
                 <dt>合同状态</dt>
-                <dd><span class="tag">{{ state(orderStatus, purchase?.orderStatus).label }}</span></dd>
+                <dd><span class="tag" :class="{ red: ['confirmed', 'paying', 'escrow_pending'].includes(order?.status), gold: order?.status === 'delivering' }">{{ state(orderStatus, purchase?.orderStatus).label }}</span></dd>
               </dl>
               <!-- 后端没有用户侧合同接口，合同弹层只呈现订单能确证的信息。 -->
               <div class="work-detail-actions">

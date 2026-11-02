@@ -360,7 +360,7 @@ async function focusContract(contractId) {
 .contract-card { display: flex; gap: 12px; border: 1px solid #ebeef5; border-radius: 6px; padding: 12px; margin-bottom: 10px; background: #fff; transition: box-shadow .15s }
 .contract-card:hover { box-shadow: 0 1px 4px rgba(0,0,0,.06) }
 /* 通知跳转命中的合同：短暂高亮描边 + 呼吸 */
-.flash-focus { animation: flashPulse 1s ease 3; outline: 2px solid #409eff; outline-offset: 1px }
+.flash-focus { animation: flashPulse 1s ease 3; outline: 2px solid var(--brand); outline-offset: 1px }
 .contract-cover { width: 108px; height: 146px; flex-shrink: 0; align-self: flex-start; border-radius: 4px; overflow: hidden; background: linear-gradient(160deg, #E9E5DA 0%, #DAD5C7 100%); display: grid; place-items: center; border: 1px solid #ebeef5 }
 .contract-cover img { width: 100%; height: 100%; object-fit: cover }
 .contract-cover .glyph { font-size: 32px; color: rgba(27,26,24,.18); font-weight: 600 }
@@ -368,12 +368,12 @@ async function focusContract(contractId) {
 .contract-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
 .contract-top b { font-size: 14px }
 .mine-role { font-size: 12px }
-.contract-meta { font-size: 12.5px; color: #606266; margin: 0 }
+.contract-meta { font-size: 12.5px; color: #5c5850; margin: 0 }
 .sign-line { display: flex; gap: 12px }
 .sign-done { color: #67c23a; font-weight: 500 }
 .sign-todo { color: #e6a23c }
 .contract-foot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 6px; gap: 8px }
-.contract-foot .cost { font-size: 12px; color: #909399 }
+.contract-foot .cost { font-size: 12px; color: var(--muted) }
 .foot-actions { display: flex; gap: 8px; align-items: center }
 .foot-actions a { text-decoration: none }
 .preview-wrap { min-height: 200px }
@@ -387,22 +387,22 @@ async function focusContract(contractId) {
 .pagination-bar { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 8px 0; margin-top: 4px }
 .edit-wrap { display: flex; flex-direction: column; gap: 12px; min-height: 200px }
 .edit-row { display: flex; flex-direction: column; gap: 6px }
-.edit-label { font-size: 13px; color: #606266 }
+.edit-label { font-size: 13px; color: #5c5850 }
 .edit-textarea { width: 100%; min-height: 320px; padding: 10px 12px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 13px; line-height: 1.7; font-family: inherit; resize: vertical; outline: none; box-sizing: border-box }
-.edit-textarea:focus { border-color: #409eff; box-shadow: 0 0 0 2px rgba(64, 158, 255, .12) }
+.edit-textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(44, 74, 82, .12) }
 .edit-note { font-size: 12px; margin: 0 }
 .edit-actions { display: flex; justify-content: flex-end; gap: 8px }
 .status-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 500 }
 .tag-pending { background: #fdf6ec; color: #e6a23c }
-.tag-partial_signed { background: #ecf5ff; color: #409eff }
+.tag-partial_signed { background: var(--redsoft); color: var(--red) }
 .tag-completed { background: #f0f9eb; color: #67c23a }
-.load-state { padding: 24px 0; text-align: center; color: #909399; font-size: 13px }
+.load-state { padding: 24px 0; text-align: center; color: var(--muted); font-size: 13px }
 .btn { border-radius: 4px; cursor: pointer }
 .btn.sm { padding: 4px 12px; font-size: 13px }
-.btn.quiet { background: #f4f4f5; border: 1px solid #e4e7ed; color: #606266 }
-.btn.ghost { background: #fff; border: 1px solid #dcdfe6; color: #606266 }
+.btn.quiet { background: var(--soft); border: 1px solid var(--line); color: #5c5850 }
+.btn.ghost { background: #fff; border: 1px solid #dcdfe6; color: #5c5850 }
 @keyframes flashPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(64, 158, 255, 0) }
-  50% { box-shadow: 0 0 0 5px rgba(64, 158, 255, .22) }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(44, 74, 82, 0) }
+  50% { box-shadow: 0 0 0 5px rgba(44, 74, 82, .22) }
 }
 </style>

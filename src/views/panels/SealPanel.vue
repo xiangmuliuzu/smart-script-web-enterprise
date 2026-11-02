@@ -562,10 +562,10 @@ onUnmounted(clearLocalPreview)
 .seal-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
 .seal-top b { font-size: 14px }
 .mine-role { font-size: 12px }
-.seal-meta { font-size: 12.5px; color: #606266; margin: 0 }
+.seal-meta { font-size: 12.5px; color: #5c5850; margin: 0 }
 .seal-meta.reject { color: #f56c6c }
 .seal-foot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 6px; gap: 8px }
-.seal-foot .cost { font-size: 12px; color: #909399 }
+.seal-foot .cost { font-size: 12px; color: var(--muted) }
 .foot-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
 
 .status-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 500 }
@@ -573,13 +573,13 @@ onUnmounted(clearLocalPreview)
 .tag-approved { background: #f0f9eb; color: #67c23a }
 .tag-rejected { background: #fef0f0; color: #f56c6c }
 
-.load-state { padding: 24px 0; text-align: center; color: #909399; font-size: 13px }
+.load-state { padding: 24px 0; text-align: center; color: var(--muted); font-size: 13px }
 .load-state.compact { padding: 12px 0 }
 
 .btn { border-radius: 4px; cursor: pointer }
 .btn.sm { padding: 4px 12px; font-size: 13px; height: 32px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center }
-.btn.quiet { background: #f4f4f5; border: 1px solid #e4e7ed; color: #606266 }
-.btn.ghost { background: #fff; border: 1px solid #dcdfe6; color: #606266 }
+.btn.quiet { background: var(--soft); border: 1px solid var(--line); color: #5c5850 }
+.btn.ghost { background: #fff; border: 1px solid #dcdfe6; color: #5c5850 }
 /* 主按钮：与顶栏头像圆标同色 var(--brand)=#2c4a52 */
 .btn.brand,
 .btn.sm.brand {
@@ -596,7 +596,7 @@ onUnmounted(clearLocalPreview)
 
 .edit-wrap { display: flex; flex-direction: column; gap: 12px; min-height: 200px }
 .edit-row { display: flex; flex-direction: column; gap: 6px }
-.edit-label { font-size: 13px; color: #606266 }
+.edit-label { font-size: 13px; color: #5c5850 }
 .edit-input {
   width: 100%; box-sizing: border-box; height: 32px; padding: 0 10px;
   border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px; outline: none;
@@ -609,7 +609,7 @@ onUnmounted(clearLocalPreview)
 .seal-drop {
   display: block; width: 100%; box-sizing: border-box; min-height: 84px; padding: 22px 16px;
   text-align: center; background: #fafafa; border: 1px dashed #d9d9d9;
-  border-radius: 6px; color: #606266; line-height: 1.5; cursor: pointer; position: relative;
+  border-radius: 6px; color: #5c5850; line-height: 1.5; cursor: pointer; position: relative;
 }
 .seal-drop.done { border-style: solid; border-color: var(--brand, #2c4a52); background: var(--brandsoft, #e4ecec); color: var(--brand, #2c4a52) }
 .seal-preview { width: 120px; height: 120px; object-fit: contain; border: 1px solid #ebeef5; border-radius: 4px; background: #fff }

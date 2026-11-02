@@ -46,9 +46,9 @@
                          @click="$emit('open-work', card)"
                          @keydown.enter.prevent="$emit('open-work', card)" @keydown.space.prevent="$emit('open-work', card)">
                   <div class="purchase-card-top">
-                    <div class="purchase-cover-area">
+                    <div class="purchase-cover-area" :class="{ 'script-cover': !card.cover || brokenCovers[card.cover] }">
                       <img v-if="card.cover && !brokenCovers[card.cover]" :src="card.cover" alt="" @error="brokenCovers[card.cover] = true">
-                      <div v-else class="work-avatar">{{ card.mark }}</div>
+                      <template v-else><span class="script-slip">{{ card.title }}</span><span class="bg-glyph" aria-hidden="true">{{ card.mark }}</span></template>
                       <span class="purchase-status" :class="{ pending: card.status === '购买中' }">{{ card.status }}</span>
                     </div>
                     <div class="purchase-summary">
@@ -76,11 +76,11 @@
           </div>
           <LoadState :pending="todoPending" :error="todoError" :retry="loadTodo" />
           <ul v-if="!todoError && todos.length" class="side-list todo-list" role="region" aria-label="订单待办列表" tabindex="0">
-            <li v-for="order in todos" :key="order.orderId" class="interactive-side-item order-todo" role="button" tabindex="0"
+            <li v-for="order in todos" :key="order.orderId" class="interactive-side-item order-todo" role="button" tabindex="0" :data-tone="orderTone(order.status)"
                 @click="$emit('open-order', order.orderId)" @keydown.enter.prevent="$emit('open-order', order.orderId)" @keydown.space.prevent="$emit('open-order', order.orderId)">
               <div class="todo-order-head"><b>《{{ order.workTitle || '订单#' + order.orderId }}》</b><em>{{ state(orderStatus, order.status).label }}</em></div>
               <span>订单号：{{ order.orderNo || '#' + order.orderId }} · {{ money(order.amount) }}</span>
-              <div class="todo-progress"><span v-for="(step, i) in orderSteps" :key="step" :class="{ active: orderStepIndex(order.status) >= i }">{{ step }}</span></div>
+              <div class="todo-progress"><span v-for="(step, i) in orderSteps" :key="step" :class="stepClass(order, i)">{{ step }}</span></div>
             </li>
           </ul>
           <p v-if="!todoPending && !todoError && !todos.length" class="todo-empty">暂无待处理订单。</p>
@@ -120,6 +120,8 @@ const todoPending = ref(true)
 const todoError = ref('')
 const works = ref({})
 const brokenCovers = reactive({})
+const orderTone = status => status === 'delivering' ? 'ochre' : status === 'completed' ? 'indigo' : 'cinnabar'
+const stepClass = (order, index) => { const current = orderStepIndex(order.status); return index < current ? 'done' : index === current ? 'current' : '' }
 const filters = reactive({ search: '', auth: 'all', status: 'all', genre: 'all', sort: 'newest' })
 
 const genres = computed(() => [...new Set(Object.values(works.value).map(w => w.genreName).filter(Boolean))])
@@ -223,9 +225,14 @@ defineExpose({ load, loadTodo })
 .activity-list summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .todo-order-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .todo-order-head b { min-width: 0; overflow-wrap: anywhere; }
-.todo-order-head em { flex: none; border-radius: 10px; padding: 2px 7px; background: #ecf5ff; color: #409eff; font-size: 12px; font-style: normal; }
+.todo-order-head em { flex: none; border-radius: 2px; padding: 2px 7px; background: var(--brandsoft); color: var(--brand); border: 1px solid rgba(44, 74, 82, .25); font-size: 12px; font-style: normal; }
+.order-todo[data-tone="cinnabar"] .todo-order-head em { background: var(--redsoft); color: var(--red); border-color: rgba(176, 58, 46, .25); }
+.order-todo[data-tone="ochre"] .todo-order-head em { background: var(--goldsoft); color: var(--gold); border-color: rgba(138, 98, 40, .28); }
 .todo-progress { display: flex; gap: 3px; margin-top: 10px; }
-.todo-progress span { flex: 1; margin: 0; border-top: 2px solid #e4e7ed; padding-top: 4px; text-align: center; font-size: 10px; color: #909399; }
-.todo-progress span.active { border-color: #409eff; color: #409eff; }
+.todo-progress span { flex: 1; margin: 0; border-top: 2px solid var(--line); padding-top: 4px; text-align: center; font-size: 10px; color: var(--muted); }
+.todo-progress span.done { border-top-color: var(--brand2); color: var(--brand); }
+.todo-progress span.current { border-top-color: var(--red); color: var(--red); font-weight: 600; }
+.order-todo[data-tone="ochre"] .todo-progress span.current { border-top-color: var(--gold); color: var(--gold); }
+.order-todo[data-tone="indigo"] .todo-progress span.current { border-top-color: var(--brand); color: var(--brand); }
 .todo-empty { color: var(--muted); font-size: 13px; }
 </style>

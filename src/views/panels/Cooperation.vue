@@ -584,12 +584,12 @@ watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
 .session-search-input { width: 100%; box-sizing: border-box }
 .session-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: background .12s }
 .session-item:hover { background: #f0f2f5 }
-.session-item.active { background: #ecf5ff; border-left: 3px solid #409eff }
+.session-item.active { background: var(--brandsoft); border-left: 3px solid var(--brand) }
 .session-top { display: flex; align-items: center; justify-content: space-between; gap: 4px }
 .session-top b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .unread-badge { background: #f56c6c; color: #fff; font-size: 10px; padding: 1px 5px; border-radius: 8px; min-width: 16px; text-align: center }
 .session-peer { font-size: 12px; margin: 2px 0 }
-.session-last { font-size: 12px; color: #909399; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 2px 0 0 }
+.session-last { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 2px 0 0 }
 .session-chat-panel { flex: 1; display: flex; flex-direction: column; padding: 0; overflow: hidden }
 .session-chat-panel .chat-messages { flex: 1; margin: 0; border: none; border-radius: 0; height: auto }
 .session-chat-panel .chat-input-row { margin: 0; padding: 8px; border-top: 1px solid #ebeef5 }
@@ -598,17 +598,17 @@ watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
 .order-card { display: flex; gap: 12px; border: 1px solid #ebeef5; border-radius: 6px; padding: 12px; margin-bottom: 10px; background: #fff; transition: box-shadow .15s }
 .order-card:hover { box-shadow: 0 1px 4px rgba(0,0,0,.06) }
 /* 通知跳转命中的记录：短暂高亮描边 + 呼吸，引导视线 */
-.flash-focus { animation: flashPulse 1s ease 3; outline: 2px solid #409eff; outline-offset: 1px }
+.flash-focus { animation: flashPulse 1s ease 3; outline: 2px solid var(--brand); outline-offset: 1px }
 .order-cover { width: 108px; height: 146px; flex-shrink: 0; align-self: flex-start; border-radius: 4px; overflow: hidden; background: linear-gradient(160deg, #E9E5DA 0%, #DAD5C7 100%); display: grid; place-items: center; border: 1px solid #ebeef5 }
 .order-cover img { width: 100%; height: 100%; object-fit: cover }
 .order-cover .glyph { font-size: 32px; color: rgba(27,26,24,.18); font-weight: 600 }
 .order-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px }
 .order-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
 .order-top b { font-size: 14px }
-.order-meta { font-size: 12.5px; color: #606266; margin: 0 }
+.order-meta { font-size: 12.5px; color: #5c5850; margin: 0 }
 .order-body .order-progress { margin: 8px 0 0 }
 .order-foot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 6px; gap: 8px }
-.order-foot .cost { font-size: 12px; color: #909399 }
+.order-foot .cost { font-size: 12px; color: var(--muted) }
 .foot-actions { display: flex; gap: 8px; align-items: center }
 .foot-actions a { text-decoration: none }
 
@@ -620,13 +620,14 @@ watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
 
 .order-progress { display: flex; align-items: center; gap: 0; margin: 16px 0 8px; padding: 0 4px }
 .progress-step { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative }
-.progress-step:not(:last-child)::after { content: ''; position: absolute; top: 7px; left: 50%; width: 100%; height: 2px; background: #e4e7ed; z-index: 0 }
-.progress-step.active:not(:last-child)::after { background: #409eff }
-.progress-dot { width: 14px; height: 14px; border-radius: 50%; background: #e4e7ed; border: 2px solid #fff; z-index: 1; transition: background .2s }
-.progress-step.active .progress-dot { background: #409eff }
-.progress-step.current .progress-dot { background: #409eff; box-shadow: 0 0 0 3px rgba(64,158,255,.2) }
-.progress-label { font-size: 12px; color: #909399; margin-top: 4px }
-.progress-step.active .progress-label { color: #409eff; font-weight: 500 }
+.progress-step:not(:last-child)::after { content: ''; position: absolute; top: 7px; left: 50%; width: 100%; height: 2px; background: var(--line); z-index: 0 }
+.progress-step.active:not(:last-child)::after { background: var(--brand) }
+.progress-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--line); border: 2px solid #fff; z-index: 1; transition: background .2s }
+.progress-step.active .progress-dot { background: var(--brand) }
+.progress-step.current .progress-dot { background: var(--red); box-shadow: 0 0 0 3px var(--redsoft) }
+.progress-step.current .progress-label { color: var(--red) }
+.progress-label { font-size: 12px; color: var(--muted); margin-top: 4px }
+.progress-step.active .progress-label { color: var(--brand); font-weight: 500 }
 
 .filter-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap }
 .role-note { font-size: 13px; color: #303133; font-weight: 500 }
@@ -635,8 +636,8 @@ watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
 .pagination-bar { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 8px 0; margin-top: 4px }
 
 .terminal-bar { background: #fef0f0; color: #f56c6c; border-radius: 4px; padding: 8px 12px; font-size: 13px; margin-top: 8px }
-.progress-step.terminated .progress-dot { background: #e4e7ed }
-.progress-step.terminated .progress-label { color: #c0c4cc; text-decoration: line-through }
+.progress-step.terminated .progress-dot { background: var(--line) }
+.progress-step.terminated .progress-label { color: var(--muted); text-decoration: line-through }
 .negotiation-bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f0f9eb; border-radius: 6px; margin: 8px }
 .neg-amount { font-size: 18px; font-weight: 700; color: #303133 }
 .neg-source { flex: 1 }
@@ -645,21 +646,21 @@ watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
 .chat-bubble { display: flex; flex-direction: column; margin-bottom: 10px; max-width: 75%; padding: 0; background: transparent; border-radius: 0; line-height: normal; font-size: inherit }
 .chat-bubble.me { margin-left: auto; align-items: flex-end }
 .chat-bubble.them { margin-right: auto; align-items: flex-start }
-.bubble-name { font-size: 11px; color: #909399; margin-bottom: 2px }
+.bubble-name { font-size: 11px; color: var(--muted); margin-bottom: 2px }
 .bubble-body { display: inline-block; padding: 8px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; word-break: break-word }
-.chat-bubble.me .bubble-body { background: #409eff; color: #fff; border-bottom-right-radius: 2px }
+.chat-bubble.me .bubble-body { background: var(--brand); color: #fff; border-bottom-right-radius: 2px }
 .chat-bubble.them .bubble-body { background: #fff; color: #303133; border: 1px solid #ebeef5; border-bottom-left-radius: 2px }
 .bubble-body time { display: block; font-size: 10px; opacity: .5; margin-top: 4px }
 .chat-bubble.me .bubble-body time { color: rgba(255,255,255,.7) }
 .quote-sys-msg { text-align: center; padding: 6px 16px; margin: 6px auto; border-radius: 10px; font-size: 12px; max-width: 80%; line-height: 1.5 }
-.qsys-报价 { background: #ecf5ff; color: #409eff }
+.qsys-报价 { background: var(--goldsoft); color: var(--gold) }
 .qsys-议价 { background: #fdf6ec; color: #e6a23c }
 .qsys-接受 { background: #f0f9eb; color: #67c23a }
 .qsys-拒绝 { background: #fef0f0; color: #f56c6c }
 .quote-input-card { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 8px 12px; background: #fff; border: 1px solid #ebeef5; border-radius: 6px; margin: 8px 0 }
-.yen-sign { font-size: 16px; font-weight: 600; color: #606266 }
+.yen-sign { font-size: 16px; font-weight: 600; color: #5c5850 }
 .amount-input { border: none; text-align: center; font-size: 16px; font-weight: 600; width: 120px; outline: none; background: transparent }
-.amount-input::placeholder { color: #c0c4cc }
+.amount-input::placeholder { color: var(--muted) }
 
 /* ── 全局细滚动条 ── */
 .panel-content ::-webkit-scrollbar { width: 4px; height: 4px }
@@ -667,35 +668,36 @@ watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
 .panel-content ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 2px }
 .panel-content ::-webkit-scrollbar-thumb:hover { background: #b0b0b0 }
 .chat-input-row { display: flex; gap: 8px; align-items: center; margin-top: 4px }
-.template-toggle-btn { flex: none; align-self: flex-end; min-width: 84px; height: 38px; padding: 0 16px; border: 1px solid #dcdfe6; border-radius: 999px; background: #fff; color: #606266; font-size: 13px; cursor: pointer; transition: border-color .15s, color .15s, background .15s; user-select: none }
-.template-toggle-btn:hover { border-color: #c0c4cc }
-.template-toggle-btn.active { border-color: #409eff; color: #409eff; background: rgba(64, 158, 255, .08) }
+.template-toggle-btn { flex: none; align-self: flex-end; min-width: 84px; height: 38px; padding: 0 16px; border: 1px solid #dcdfe6; border-radius: 999px; background: #fff; color: #5c5850; font-size: 13px; cursor: pointer; transition: border-color .15s, color .15s, background .15s; user-select: none }
+.template-toggle-btn:hover { border-color: var(--muted) }
+.template-toggle-btn.active { border-color: var(--brand); color: var(--brand); background: rgba(44, 74, 82, .08) }
 .chat-textarea { flex: 1; min-height: 38px; max-height: 120px; padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 8px; font-size: 13px; font-family: inherit; line-height: 1.5; resize: none; outline: none; transition: border-color .15s, box-shadow .15s }
-.chat-textarea:focus { border-color: #409eff; box-shadow: 0 0 0 2px rgba(64, 158, 255, .12) }
-.send-btn { flex: none; align-self: flex-end; height: 38px; padding: 0 18px; border: none; border-radius: 999px; background: #409eff; color: #fff; font-size: 13px; cursor: pointer; transition: background .15s, opacity .15s }
-.send-btn:hover { background: #66b1ff }
-.send-btn:disabled { background: #a0cfff; cursor: not-allowed }
+.chat-textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(44, 74, 82, .12) }
+.send-btn { flex: none; align-self: flex-end; height: 38px; padding: 0 18px; border: none; border-radius: 999px; background: var(--brand); color: #fff; font-size: 13px; cursor: pointer; transition: background .15s, opacity .15s }
+.send-btn:hover { background: var(--brand2) }
+.send-btn:disabled { background: var(--line); cursor: not-allowed }
 .status-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 500 }
 .tag-pending { background: #fdf6ec; color: #e6a23c }
-.tag-pending_seller { background: #ecf5ff; color: #409eff }
+.tag-pending_seller { background: var(--redsoft); color: var(--red) }
 .tag-accepted, .tag-completed { background: #f0f9eb; color: #67c23a }
 .tag-rejected, .tag-cancelled { background: #fef0f0; color: #f56c6c }
-.tag-closed { background: #f4f4f5; color: #909399 }
-.tag-confirmed, .tag-deal { background: #ecf5ff; color: #409eff }
+.tag-closed { background: var(--soft); color: var(--muted) }
+.tag-confirmed { background: var(--redsoft); color: var(--red) }
+.tag-deal { background: var(--brandsoft); color: var(--brand) }
 .tag-escrow_pending { background: #fdf6ec; color: #e6a23c }
 .tag-quoted { background: #fdf6ec; color: #e6a23c }
-.tag-delivering { background: #ecf5ff; color: #409eff }
+.tag-delivering { background: var(--goldsoft); color: var(--gold) }
 .tag-refunded { background: #fef0f0; color: #f56c6c }
-.tag-expired { background: #f4f4f5; color: #909399 }
-.load-state { padding: 24px 0; text-align: center; color: #909399; font-size: 13px }
+.tag-expired { background: var(--soft); color: var(--muted) }
+.load-state { padding: 24px 0; text-align: center; color: var(--muted); font-size: 13px }
 .btn { border-radius: 4px; cursor: pointer }
 .btn.sm { padding: 4px 12px; font-size: 13px }
-.btn.quiet { background: #f4f4f5; border: 1px solid #e4e7ed; color: #606266 }
-.btn.ghost { background: #fff; border: 1px solid #dcdfe6; color: #606266 }
-.btn.sm:not(.ghost):not(.quiet) { background: #409eff; border: 1px solid #409eff; color: #fff }
+.btn.quiet { background: var(--soft); border: 1px solid var(--line); color: #5c5850 }
+.btn.ghost { background: #fff; border: 1px solid #dcdfe6; color: #5c5850 }
+.btn.sm:not(.ghost):not(.quiet) { background: var(--brand); border: 1px solid var(--brand); color: #fff }
 @keyframes flashPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(64, 158, 255, 0) }
-  50% { box-shadow: 0 0 0 5px rgba(64, 158, 255, .22) }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(44, 74, 82, 0) }
+  50% { box-shadow: 0 0 0 5px rgba(44, 74, 82, .22) }
 }
 </style>
 <style>

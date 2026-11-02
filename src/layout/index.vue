@@ -8,18 +8,44 @@
           <button data-view="dashboard" data-current="true" type="button" @click="closeAll">采购工作台</button>
         </nav>
         <div class="top-actions">
-          <button class="top-action" type="button" data-page-entry="message" @click="openMessagePage">
-            消息 <span class="badge" :style="{ display: messageUnread ? 'inline-grid' : 'none' }">{{ messageUnread }}</span>
-          </button>
-          <button class="top-action" type="button" data-page-entry="conversation" @click="openConversationPage()">
-            平台客服 <span class="badge" :style="{ display: chatUnread ? 'inline-grid' : 'none' }">{{ chatUnread }}</span>
-          </button>
-          <button class="top-action" type="button" aria-label="询盘" @click="openTrade('inquiry')">询盘 <span v-if="activeInquiries" class="badge">{{ activeInquiries }}</span></button>
-          <button class="top-action" type="button" @click="openTrade('session')">会话</button>
-          <button class="top-action" type="button" @click="openTrade('order')">订单</button>
-          <button class="top-action" type="button" @click="openTrade('contract')">合同</button>
-          <button class="top-action" type="button" @click="openCopyright">版权</button>
-          <button class="top-action" type="button" @click="openSeal">印章</button>
+          <div class="nav-group" role="group" aria-label="交易链路">
+            <button class="nav-icon" type="button" aria-label="询盘" @click="openTrade('inquiry')">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span v-if="activeInquiries" class="badge">{{ activeInquiries }}</span></span>
+              <span class="lbl">询盘</span>
+            </button>
+            <button class="nav-icon" type="button" aria-label="会话" @click="openTrade('session')">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 8h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2v4l-4-4H9"/></svg></span>
+              <span class="lbl">会话</span>
+            </button>
+            <button class="nav-icon" type="button" aria-label="订单" @click="openTrade('order')">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6"/></svg></span>
+              <span class="lbl">订单</span>
+            </button>
+            <button class="nav-icon" type="button" aria-label="合同" @click="openTrade('contract')">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
+              <span class="lbl">合同</span>
+            </button>
+          </div>
+          <div class="nav-group" role="group" aria-label="资产凭证">
+            <button class="nav-icon" type="button" aria-label="版权" @click="openCopyright">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+              <span class="lbl">版权</span>
+            </button>
+            <button class="nav-icon" type="button" aria-label="印章" @click="openSeal">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5" y="3" width="14" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg></span>
+              <span class="lbl">印章</span>
+            </button>
+          </div>
+          <div class="nav-group" role="group" aria-label="沟通通知">
+            <button class="nav-icon" type="button" aria-label="消息" @click="openMessagePage">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg><span v-if="messageUnread" class="badge">{{ messageUnread }}</span></span>
+              <span class="lbl">消息</span>
+            </button>
+            <button class="nav-icon" type="button" aria-label="平台客服" @click="openConversationPage()">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg><span v-if="chatUnread" class="badge">{{ chatUnread }}</span></span>
+              <span class="lbl">平台客服</span>
+            </button>
+          </div>
           <div class="company account-menu" :data-open="menuOpen" tabindex="0" role="button" :aria-expanded="menuOpen" aria-label="打开账户菜单"
                @click.stop="menuOpen = !menuOpen" @keydown.enter.prevent="menuOpen = !menuOpen" @keydown.space.prevent="menuOpen = !menuOpen">
             <span class="company-mark">
