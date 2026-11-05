@@ -33,6 +33,10 @@
 .enterprise-portal .topbar .brand strong { font-size: 19px; font-weight: 600; }
 .enterprise-portal .topbar .brand span { font-size: 13px; color: var(--muted); }
 .enterprise-portal .nav button { font-size: 16px; }
+/* prototype.css 里有一条原型脚本遗留的隐藏规则 .topbar .nav button:nth-child(2),:nth-child(4){display:none}，
+   会把新增的第二个顶级页签（任务广场）吃掉；这里用更高优先级把它放回来。
+   当前 nav 只有 2 个页签，将来若加第 4 个顶级页签，需同样把 :nth-child(4) 放回来。 */
+.enterprise-portal .topbar .nav > button:nth-child(2) { display: inline-block; }
 .enterprise-portal .top-actions { gap: 20px; }
 .enterprise-portal .top-action { font-size: 14px; color: #5c5850; }
 .enterprise-portal .company-text b { font-size: 15px; }

@@ -39,19 +39,22 @@ import { relativeText } from '../utils/enterprise.js'
 const props = defineProps({ open: Boolean })
 const emit = defineEmits(['close', 'open-trade', 'read'])
 const { api, handleError } = usePortal()
-// 交易域通知（TRANSACTION）按 businessType 映射到 Cooperation 对应 Tab 与按钮文案；
+// 交易域通知（TRANSACTION）按 businessType 映射到对应入口与按钮文案；
 // 后端通知仅携带 INQUIRY/ORDER/CONTRACT 三类业务主键，会话需从询盘进入故不单独映射。
+// DEMAND 已提升为顶级页签，不再属于 Cooperation 的 Tab，故只给 demand 标志位 + 任务主键。
 const TRADE_JUMP = {
   INQUIRY: { tab: 'inquiry', label: '查看询盘' },
   ORDER: { tab: 'order', label: '查看订单' },
   CONTRACT: { tab: 'contract', label: '查看合同' },
+  DEMAND: { demand: true, label: '查看任务' },
 }
 function tradeJumpOf(item) {
   return item && item.type === 'TRANSACTION' && item.businessId ? TRADE_JUMP[item.businessType] : null
 }
 function jumpTrade(item) {
   const jump = tradeJumpOf(item)
-  if (jump) emit('open-trade', { tab: jump.tab, bizId: item.businessId })
+  if (!jump) return
+  emit('open-trade', jump.demand ? { demand: true, bizId: item.businessId } : { tab: jump.tab, bizId: item.businessId })
 }
 const pending = ref(false)
 const error = ref('')

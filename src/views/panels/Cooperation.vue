@@ -51,11 +51,12 @@
           </div>
           <div class="session-chat-panel">
             <template v-if="chatSessionId">
-              <div class="negotiation-bar">
+              <div class="negotiation-bar" :class="'neg-bar-' + negTone">
                 <span class="neg-amount">{{ negAmountYuan }}</span>
                 <span class="neg-source cost">{{ negSource }}</span>
                 <button v-if="canAcceptLatest" class="btn sm" @click="doAcceptLatestQuote">接受</button>
                 <span v-else-if="latestQuote && ['pending','pending_seller'].includes(latestQuote.status)" class="cost" style="font-size:12px">等待对方确认</span>
+                <span v-else-if="quoteAccepted" class="neg-deal">✓ 已成交</span>
               </div>
               <div class="chat-messages" ref="chatBodyEl">
                 <LoadState :pending="chatLoading" />
@@ -130,6 +131,8 @@
         </div>
         <div v-if="orderTotal > PAGE_SIZE" class="pagination-bar"><button class="btn sm ghost" :disabled="orderPageNum <= 1" @click="orderPageNum--; loadOrders()">上一页</button><span class="cost">第 {{ orderPageNum }} 页 / 共 {{ Math.ceil(orderTotal / PAGE_SIZE) }} 页</span><button class="btn sm ghost" :disabled="orderPageNum * PAGE_SIZE >= orderTotal" @click="orderPageNum++; loadOrders()">下一页</button></div>
       </template>
+
+      <!-- 任务广场已提升为顶级页签 /demand（广场/我发布的/发布与编辑/任务详情），不再在本抽屉内展示 -->
     </div>
     <PortalLayer v-model="orderContractVisible" :title="orderContractTitle" modal big>
       <div v-loading="orderContractLoading" class="preview-wrap">
@@ -153,7 +156,7 @@
   </PortalLayer>
 </template>
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import QRCode from 'qrcode'
 import PortalLayer from '../../components/PortalLayer.vue'
@@ -312,6 +315,16 @@ const latestQuoteFromOther = computed(() => {
   return !isMine && (latestQuote.value.status === 'pending' || latestQuote.value.status === 'pending_seller')
 })
 const canAcceptLatest = computed(() => latestQuoteFromOther.value)
+// 报价已被接受：议价栏对齐 APP 成交态（金额变绿 + 已成交徽标）
+const quoteAccepted = computed(() => latestQuote.value?.status === 'accepted')
+// 议价栏色调跟随最新报价：与聊天记录报价/议价气泡四态同色
+const negTone = computed(() => {
+  const q = latestQuote.value
+  if (!q) return 'budget'
+  if (q.status === 'accepted') return 'accepted'
+  if (q.status === 'rejected') return 'rejected'
+  return q.quoterRole === 'seller' ? 'seller' : 'buyer'
+})
 
 function isQuoteSysMsg(msg) {
   if (!msg.isSystem && msg.msgType !== 'SYSTEM') return false
@@ -575,6 +588,7 @@ async function applyFocus() {
   }
 }
 watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
+// 任务广场（列表/发布表单/托管支付）已全部移到顶级页签 /demand，本抽屉不再承担需求任务业务。
 </script>
 <style scoped>
 /* ── 会话列表 ── */
@@ -641,6 +655,16 @@ watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
 .negotiation-bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f0f9eb; border-radius: 6px; margin: 8px }
 .neg-amount { font-size: 18px; font-weight: 700; color: #303133 }
 .neg-source { flex: 1 }
+/* 议价栏色调与报价气泡四态同色：卖方报价蓝 / 买方议价橙 / 成交绿 / 拒绝红，无报价（预算）灰 */
+.neg-bar-seller { background: #ecf5ff }
+.neg-bar-seller .neg-amount, .neg-bar-seller .neg-source { color: #409eff }
+.neg-bar-buyer { background: #fdf6ec }
+.neg-bar-buyer .neg-amount, .neg-bar-buyer .neg-source { color: #e6a23c }
+.neg-bar-accepted { background: #e1f3d8; box-shadow: 0 0 0 1px #b3e19d inset }
+.neg-bar-accepted .neg-amount { color: #67c23a }
+.neg-bar-rejected { background: #fef0f0 }
+.neg-bar-rejected .neg-amount, .neg-bar-rejected .neg-source { color: #f56c6c }
+.neg-deal { font-size: 12px; font-weight: 500; color: #67c23a }
 .chat-messages { overflow-y: auto; border: 1px solid #ebeef5; border-radius: 6px; padding: 12px; margin: 8px; background: transparent; flex: 1; min-height: 0 }
 /* 外层容器：清掉全局 prototype.css 遗留的米色底色/内边距（.chat-bubble 全局规则），只保留内层 .bubble-body 彩色气泡 */
 .chat-bubble { display: flex; flex-direction: column; margin-bottom: 10px; max-width: 75%; padding: 0; background: transparent; border-radius: 0; line-height: normal; font-size: inherit }
@@ -706,4 +730,11 @@ watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
 .el-drawer.portal-drawer .dtabs { flex: none }
 .el-drawer.portal-drawer .panel-content { flex: 1; min-height: 0; overflow-y: auto; padding: 16px }
 .el-drawer.portal-drawer:has(.session-layout) .panel-content { overflow: hidden; display: flex; flex-direction: column }
+/* ── 任务广场表单 ── */
+.form-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px }
+.form-row label { width: 80px; flex-shrink: 0; font-size: 13px; color: #606266; line-height: 32px }
+.form-row .filter-input { flex: 1 }
+.data-table { border-collapse: collapse; font-size: 13px }
+.data-table th, .data-table td { padding: 6px 10px; border-bottom: 1px solid #ebeef5; text-align: left }
+.data-table th { background: #fafafa; font-weight: 500 }
 </style>
