@@ -16,9 +16,10 @@
       <template v-if="tagList.length"> · 标签 {{ tagList.join(' / ') }}</template>
     </p>
     <!-- 广场（只读）只显示别人已托管的可接单任务；自己发布的要看资金进度与接单人 -->
+    <!-- 两笔钱各带主语：预算托管=自己付的预算款，履约押金=创作者付的保证金（本端只读） -->
     <p v-if="mode === 'published'" class="dc-meta">
-      托管：{{ escrowStatusLabel(demand.escrowStatus) }}（{{ money(demand.escrowAmount) }}）
-      · 押金：{{ depositStatusLabel(demand.depositStatus) }}（{{ money(demand.depositAmount) }}）
+      预算托管：{{ escrowStatusLabel(demand.escrowStatus) }}（{{ money(demand.escrowAmount) }}）
+      · 履约押金：{{ depositStatusLabel(demand.depositStatus) }}（{{ money(demand.depositAmount) }}）
     </p>
     <p v-if="mode === 'published' && (demand.acceptedCreatorName || demand.acceptedCreatorId)" class="dc-meta">
       接单人：{{ demand.acceptedCreatorName || ('用户#' + demand.acceptedCreatorId) }}<template v-if="demand.acceptedAt"> · {{ timeText(demand.acceptedAt) }} 接单</template>

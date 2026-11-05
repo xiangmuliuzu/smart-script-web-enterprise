@@ -15,8 +15,10 @@ export const demandStatusOptions = Object.entries(DEMAND_STATUS_LABELS).map(([va
 const ESCROW_LABELS = { none: '未托管', pending_payment: '待付托管', escrowed: '已托管', released: '已放款', refunded_to_publisher: '已退回发布者' }
 export const escrowStatusLabel = s => ESCROW_LABELS[s] || s || '-'
 
-// 押金资金状态（DEPOSIT_*）：由创作者付押金写入，发布者只读
-const DEPOSIT_LABELS = { none: '未缴', held: '已托管', refunded: '已退还', forfeited: '已没收' }
+// 押金资金状态（DEPOSIT_*）：由创作者付押金写入，发布者只读。
+// 押金与托管是两笔不同的钱：押金(deposit)是创作者缴的履约保证金，不是发布者托管的预算款(escrow)，
+// 文案不能复用「已托管」，否则卡片上「托管：已托管 · 押金：已托管」完全分不开。
+const DEPOSIT_LABELS = { none: '未缴', held: '在押', refunded: '已退还', forfeited: '已没收' }
 export const depositStatusLabel = s => DEPOSIT_LABELS[s] || s || '-'
 
 // 投稿状态（SUBMISSION_STATUS_*）

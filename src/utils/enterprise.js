@@ -11,7 +11,9 @@ export const qs = params => {
 
 // 交易域金额一律以「分」下发：报价 price、询盘 budget、订单 amount 都是分
 // （后端在 controller 里把库中的元 ×100，见 AppTradeQuoteController.yuanToFen）。
-export const money = fen => '¥' + (Number(fen || 0) / 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+// 小数位固定两位：与 APP 端 toStringAsFixed(2) 和创作者端 finance.yuanText 同一口径，
+// 避免同一列里 ¥600 与 ¥600.50 混排。改动共用于全站，tests/money.test.js 已同步为两位。
+export const money = fen => '¥' + (Number(fen || 0) / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export const licenseLabels = { exclusive: '独家授权', non_exclusive: '非独家授权', adaptation: '改编授权' }
 export const licenseLabel = value => licenseLabels[value] || '授权方式待确认'
@@ -118,7 +120,8 @@ export function contractHtml(html) {
 }
 
 // 合同 amount 接口按「元」直返（区别于订单/报价/询盘的「分」），展示不除 100。
-export const contractMoney = value => '¥' + Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+// 合同金额按「元」直返（与 money 的分口径不同），小数位同样对齐为两位
+export const contractMoney = value => '¥' + Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 // 头像上传前的本地校验，规则与创作者端一致（png/jpg，5 MB）。
 export function validateImage(file) {
