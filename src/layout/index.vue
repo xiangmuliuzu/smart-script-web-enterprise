@@ -109,6 +109,7 @@ import ProfileDrawer from '../components/ProfileDrawer.vue'
 import FeedbackDrawer from '../components/FeedbackDrawer.vue'
 import { getInfo, isAuthFailure, logout } from '../auth.js'
 import { portalKey } from '../utils/portal.js'
+import { friendlyErrorMessage } from '../utils/friendly-error.js'
 import { avatarText, avatarUrl, realNameStatus, state } from '../utils/enterprise.js'
 
 const router = useRouter()
@@ -220,7 +221,7 @@ async function refreshUnread() {
 async function reload() { await desk.value?.load?.(); refreshUnread() }
 function handleError(failure, { silent = false } = {}) {
   if (isAuthFailure(failure)) { router.replace({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } }); return true }
-  if (!silent) ElMessage.error(failure?.message || '操作未完成，请稍后重试')
+  if (!silent) ElMessage.error(friendlyErrorMessage({ status: failure?.status, code: failure?.code, message: failure?.message }))
   return false
 }
 async function load() {

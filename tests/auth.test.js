@@ -74,7 +74,7 @@ test('SMS code rejection, invalid identities and malformed sessions cannot leave
 test('SMS login does not submit without current agreement versions', async () => {
   let calls = 0
   globalThis.fetch = async () => { calls++; return { ok: true, status: 200, json: async () => ({ code: 200, data: { agreements: [] } }) } }
-  await assert.rejects(smsLogin({ phone: '13600000000', code: '123456' }), /协议版本获取失败/)
+  await assert.rejects(smsLogin({ phone: '13600000000', code: '123456' }), /协议加载失败/)
   assert.equal(calls, 1)
   assert.equal(getToken(), '')
 })
@@ -210,7 +210,7 @@ test('email password reset uses a separate verification scene', async () => {
 
 test('registration refuses to submit when the agreement versions cannot be loaded', async () => {
   reply({ code: 200, data: { agreements: [] } })
-  await assert.rejects(register({ phone: '13600000000', code: '123456', password: 'test-only-secret1' }), /协议版本获取失败/)
+  await assert.rejects(register({ phone: '13600000000', code: '123456', password: 'test-only-secret1' }), /协议加载失败/)
 })
 
 test('sms and password reset post the documented payloads anonymously', async () => {
