@@ -304,7 +304,7 @@ const negAmountYuan = computed(() => {
   return moneyFromFen(inq?.budget || 0)
 })
 const isCurrentBuyer = computed(() => Number(sessionInquiry.value?.buyerId) === userId.value)
-const currentLicenseType = computed(() => sessionInquiry.value?.licenseType || latestQuote.value?.licenseType || 'exclusive')
+const currentLicenseType = computed(() => sessionInquiry.value?.licenseType || latestQuote.value?.licenseType || null) // 无版权询盘不带授权类型：不再默认 exclusive，避免报价注入脏数据
 const negSource = computed(() => {
   if (!latestQuote.value) return '预算金额'
   return latestQuote.value.quoterRole === 'seller' ? '卖方报价' : '买方议价'
@@ -452,6 +452,8 @@ const paymentOrder = ref(null)
 const paymentChecking = ref(false)
 const paymentMessage = ref('')
 async function doPayOrder(o) {
+  // 付款前置提醒：与 APP 端口径一致，交易付款后不支持退款
+  try { await ElMessageBox.confirm('请注意：本订单付款成功后不支持退款，请与卖方确认交易内容无误后再谨慎决定是否付款。', '付款确认', { type: 'warning', confirmButtonText: '确认付款', cancelButtonText: '再想想' }) } catch { return }
   try {
     const result = await api.value.payOrder(o.orderId)
     if (!result?.sandbox || !result.qrCode) throw new Error('获取沙箱支付二维码失败')

@@ -134,7 +134,7 @@ function buildCards() {
     cards.push({
       key: 'order-' + order.orderId, workId: order.workId, title: order.workTitle || '作品 #' + order.workId,
       mark: avatarText(order.workTitle), cover: avatarUrl(order.workCover || work.cover),
-      genre: work.genreName || '题材待确认', auth: order.licenseType === 'exclusive' ? '独家' : '非独家',
+      genre: work.genreName || '题材待确认', auth: order.licenseType ? (order.licenseType === 'exclusive' ? '独家' : '非独家') : '未指定',
       status: '已购买', date: (order.createdAt || '').slice(0, 10), source: 'order', id: order.orderId,
       licenseType: order.licenseType, amount: order.amount, order, orderStatus: order.status,
       hasQuote: quotes.value.some(q => String(q.inquiryId) === String(order.inquiryId)),
@@ -150,7 +150,7 @@ function buildCards() {
     cards.push({
       key: 'inquiry-' + inquiry.inquiryId, workId: inquiry.workId, title: inquiry.workTitle || '作品 #' + inquiry.workId,
       mark: avatarText(inquiry.workTitle), cover: avatarUrl(inquiry.workCover || work.cover),
-      genre: work.genreName || '题材待确认', auth: inquiry.licenseType === 'exclusive' ? '独家' : '非独家',
+      genre: work.genreName || '题材待确认', auth: inquiry.licenseType ? (inquiry.licenseType === 'exclusive' ? '独家' : '非独家') : '未指定',
       status: '购买中', date: (inquiry.createdAt || '').slice(0, 10), source: 'inquiry', id: inquiry.inquiryId,
       licenseType: inquiry.licenseType, amount: quote?.price, hasQuote: !!quote,
       workType: [work.genreName, licenseLabel(inquiry.licenseType)].filter(Boolean).join(' · '),

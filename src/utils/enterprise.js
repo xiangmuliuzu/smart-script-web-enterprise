@@ -16,7 +16,8 @@ export const qs = params => {
 export const money = fen => '¥' + (Number(fen || 0) / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export const licenseLabels = { exclusive: '独家授权', non_exclusive: '非独家授权', adaptation: '改编授权' }
-export const licenseLabel = value => licenseLabels[value] || '授权方式待确认'
+// 无版权作品的询盘/订单不带授权类型：null 统一显示「未指定」（与 APP 端 LicenseType.label 同口径）
+export const licenseLabel = value => licenseLabels[value] || value || '未指定'
 
 export const inquiryStatus = {
   pending: { label: '待回复', tone: 'gray' },
