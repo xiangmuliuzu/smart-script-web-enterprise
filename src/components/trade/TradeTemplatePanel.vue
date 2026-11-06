@@ -152,7 +152,9 @@ async function syncQuote(amountFen) {
     // 无版权询盘 licenseType 为空：不再默认 non_exclusive，后端会沿用询盘的空值
     const body = { inquiryId, price: amountFen, licenseType: props.licenseType || null }
     await api.value.counterOffer(body)
-  } catch { /* 报价同步失败不阻断已发出的消息 */ }
+  } catch (e) { /* 报价同步失败不阻断已发出的消息，但需明示告知，避免静默死链 */
+    ElMessage.warning('消息已发出，但议价报价同步失败：' + (e?.message || '请稍后在询盘处重新发起议价'))
+  }
 }
 </script>
 
