@@ -166,14 +166,11 @@ export const closeDemand = demandId => data(demandPath(demandId) + '/close', { m
 // 支付宝沙箱入账：发布者托管付款（需服务端查单确认）。接单侧押金付款不在本端提供。
 export const payEscrow = demandId => data(demandPath(demandId) + '/pay/escrow', { method: 'POST' })
 export const confirmEscrow = demandId => data(demandPath(demandId) + '/pay/escrow/confirm', { method: 'POST' })
-// 投稿管理（仅发布者可查）：入围 / 选标 / 回绝；选标会创建询盘并关闭征集，与其他投稿互斥于逐轮接单链路。
-export const listDemandSubmissions = demandId => data(demandPath(demandId) + '/submissions')
-export const shortlistSubmission = submissionId => data(demandBase + '/submission/' + id(submissionId) + '/shortlist', { method: 'PUT' })
-export const acceptSubmission = submissionId => data(demandBase + '/submission/' + id(submissionId) + '/accept', { method: 'PUT' })
-export const rejectSubmission = (submissionId, remark) => data(demandBase + '/submission/' + id(submissionId) + '/reject', { method: 'PUT', body: { remark } })
 // 验收轮次（出参 amount 为分）：review 通过即放出本轮款项，是逐轮放款的唯一触发点
 export const demandStages = demandId => data(demandPath(demandId) + '/stages')
 export const reviewStage = (demandId, stageId, body) => data(stagePath(demandId, stageId) + '/review', { method: 'PUT', body })
+// 验收前查看交付作品：仅发布者可调，正文只含本轮 episodeTo 内的章节，之后章节 readable=false
+export const deliverableWork = (demandId, stageId) => data(stagePath(demandId, stageId) + '/deliverable-work')
 // 延期：决定创作者申请 / 发布者自主延时（不经申请直接顺延），两者均写入延时记录
 export const decideExtend = (demandId, stageId, approved) => data(stagePath(demandId, stageId) + '/extend/decision', { method: 'PUT', body: { approved } })
 export const selfExtendStage = (demandId, stageId, body) => data(stagePath(demandId, stageId) + '/extend', { method: 'PUT', body })

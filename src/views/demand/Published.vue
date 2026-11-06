@@ -2,7 +2,7 @@
   <div class="demand-page">
     <DemandTabs />
     <div class="page-head">
-      <p class="page-note">这里是你发布的任务。「招标制」在详情页管理投稿并选用中标作品，「接单制」在详情页逐轮验收放款，两条路径互斥：一旦有人付押金接单，就不宜再选稿；一旦选稿中标，征集即关闭且不走逐轮交付。</p>
+      <p class="page-note">这里是你发布的任务。任务仅支持接单制：创作者付押金接单后，在详情页逐轮验收放款。</p>
       <router-link class="btn" to="/demand/create">发布任务</router-link>
     </div>
 

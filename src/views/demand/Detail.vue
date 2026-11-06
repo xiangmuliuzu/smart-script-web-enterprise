@@ -17,9 +17,8 @@
 
       <dl class="dd-info">
         <div><dt>任务编号</dt><dd>{{ demand.demandNo }}</dd></div>
-        <div><dt>投稿截止</dt><dd>{{ dateText(demand.deadline) }}</dd></div>
+        <div><dt>接单截止</dt><dd>{{ dateText(demand.deadline) }}</dd></div>
         <div><dt>总集数</dt><dd>{{ isStaged ? demand.totalEpisodes + ' 集 · 逐轮验收' : '未设定 · 整单时限 ' + (demand.durationHours || '-') + ' 小时' }}</dd></div>
-        <div><dt>投稿数</dt><dd>{{ demand.submissionCount || 0 }}</dd></div>
         <div><dt>托管金额</dt><dd>{{ money(demand.escrowAmount) }} · {{ escrowStatusLabel(demand.escrowStatus) }}</dd></div>
         <div><dt>创作者押金</dt><dd>{{ depositStatusLabel(demand.depositStatus) }}<template v-if="Number(demand.depositAmount) > 0">（{{ money(demand.depositAmount) }}）</template></dd></div>
         <div v-if="demand.acceptedCreatorId || demand.acceptedCreatorName" class="dd-span-2">
@@ -46,33 +45,8 @@
         <button v-if="demand.status === 'open'" class="btn ghost danger" :disabled="busy" @click="doClose">关闭征集</button>
         <button v-if="demand.acceptedCreatorId" class="btn ghost" :disabled="busy" @click="openChat(demand.acceptedCreatorId)">联系接单人</button>
       </section>
-      <p v-if="canPayEscrow" class="note">托管完成前任务不会出现在任务广场、也不可见于投稿与接单；预算全额进入平台第三方托管账户，逐轮验收通过时按轮次放出。</p>
-      <p v-else-if="demand.status === 'open' && demand.escrowStatus === 'escrowed'" class="note">托管已到账，任务在广场曝光中。可等创作者付押金接单，也可在下方直接从投稿里选标。</p>
-
-      <!-- ═══ 招标制：投稿管理 ═══ -->
-      <section v-if="demand.status === 'open'" class="dd-block">
-        <div class="block-head">
-          <h3>投稿管理</h3>
-          <button class="btn ghost small" type="button" :disabled="busy" @click="loadSubmissions">刷新</button>
-        </div>
-        <p class="note">选标会关闭征集并为中标者创建一条询盘，走「询盘→报价→合同」的整单成交，不占用逐轮放款；其余投稿会被自动拒掉。已有人付押金接单后请勿再选标。</p>
-        <p v-if="!submissions.length" class="empty-text">暂无投稿</p>
-        <article v-for="sub in submissions" :key="sub.submissionId" class="sub-card">
-          <div class="sub-head">
-            <b>《{{ sub.workTitle || ('作品#' + sub.workId) }}》</b>
-            <span class="sub-status" :data-tone="submissionTone(sub.status)">{{ submissionStatusLabel(sub.status) }}</span>
-          </div>
-          <p class="sub-meta">{{ sub.submitterName || ('用户#' + sub.submitterId) }} · 投稿于 {{ timeText(sub.createdAt) }}</p>
-          <p v-if="sub.submitMessage" class="sub-msg">{{ sub.submitMessage }}</p>
-          <p v-if="sub.reviewRemark" class="sub-meta sub-remark">处理备注：{{ sub.reviewRemark }}<template v-if="sub.reviewedAt"> · {{ timeText(sub.reviewedAt) }}</template></p>
-          <div v-if="['submitted', 'shortlisted'].includes(sub.status)" class="sub-actions">
-            <button v-if="sub.status === 'submitted'" class="btn light small" :disabled="busy" @click="doShortlist(sub)">入围</button>
-            <button class="btn small" :disabled="busy" @click="doAccept(sub)">选标（中标）</button>
-            <button class="btn ghost small" :disabled="busy" @click="doReject(sub)">拒绝</button>
-            <button class="btn ghost small" :disabled="busy" @click="openChat(sub.submitterId)">联系作者</button>
-          </div>
-        </article>
-      </section>
+      <p v-if="canPayEscrow" class="note">托管完成前任务不会出现在任务广场、也不可见于接单；预算全额进入平台第三方托管账户，逐轮验收通过时按轮次放出。</p>
+      <p v-else-if="demand.status === 'open' && demand.escrowStatus === 'escrowed'" class="note">托管已到账，任务在广场曝光中，等待创作者付押金接单后进入逐轮交付与验收放款。</p>
 
       <!-- ═══ 接单制：逐轮验收与放款 ═══ -->
       <h3 class="dd-section-title">验收轮次</h3>
@@ -98,13 +72,12 @@ import { usePortal } from '../../utils/portal.js'
 import LoadState from '../../components/LoadState.vue'
 import PortalLayer from '../../components/PortalLayer.vue'
 import DemandStagePanel from '../../components/demand/DemandStagePanel.vue'
-import { demandStatusLabel, escrowStatusLabel, depositStatusLabel, submissionStatusLabel, money, dateText, timeText, genreLabel } from '../../utils/demand.js'
+import { demandStatusLabel, escrowStatusLabel, depositStatusLabel, money, dateText, timeText, genreLabel } from '../../utils/demand.js'
 const { api, openTrade, handleError } = usePortal()
 const route = useRoute()
 const router = useRouter()
 const demandId = computed(() => Number(route.params.id))
 const demand = ref(null)
-const submissions = ref([])
 const panel = ref(null)
 const pending = ref(true)
 const error = ref('')
@@ -120,48 +93,14 @@ const statusTone = computed(() => ({ open: 'warn', in_progress: 'info', selected
 // 与后端 updateDemand / payEscrow 的前置条件对齐，避免点了才吃 400
 const canEdit = computed(() => demand.value?.status === 'open' && !['escrowed', 'released'].includes(demand.value?.escrowStatus))
 const canPayEscrow = computed(() => demand.value?.status === 'open' && demand.value?.escrowStatus === 'pending_payment')
-const submissionTone = status => ({ submitted: 'off', shortlisted: 'info', accepted: 'ok', rejected: 'off' }[status] || 'off')
 function goBack() { router.push('/demand/published') }
 async function load() {
   if (!demandId.value) { error.value = '任务编号无效'; pending.value = false; return }
   pending.value = !demand.value; error.value = ''
   try {
     demand.value = await api.value.getDemand(demandId.value)
-    if (demand.value.status === 'open') await loadSubmissions()
   } catch (failure) { error.value = failure.message || '任务加载失败'; await handleError(failure) }
   finally { pending.value = false }
-}
-async function loadSubmissions() {
-  try { submissions.value = await api.value.listDemandSubmissions(demandId.value) || [] }
-  catch (failure) { submissions.value = []; await handleError(failure, { silent: true }) }
-}
-async function doShortlist(sub) {
-  busy.value = true
-  try { await api.value.shortlistSubmission(sub.submissionId); ElMessage.success('已标记入围'); await loadSubmissions() }
-  catch (failure) { await handleError(failure) } finally { busy.value = false }
-}
-async function doAccept(sub) {
-  try {
-    await ElMessageBox.confirm(
-      `确认选用《${sub.workTitle || '该作品'}》？选标后征集立即关闭，其余投稿自动拒掉，并生成一条询盘走合同成交；本任务不再逐轮交付。`,
-      '选标确认', { type: 'warning', confirmButtonText: '确认选标', cancelButtonText: '再想想' })
-  } catch { return }
-  busy.value = true
-  try {
-    await api.value.acceptSubmission(sub.submissionId)
-    ElMessage.success('已选标，可在「询盘」中继续推进合同')
-    await load()
-  } catch (failure) { await handleError(failure) } finally { busy.value = false }
-}
-async function doReject(sub) {
-  let remark
-  try {
-    const result = await ElMessageBox.prompt('拒绝理由会同步给创作者（可留空）', '拒绝投稿', { inputType: 'textarea', inputPlaceholder: '例如：题材匹配度不足，建议改投悬疑类征集' })
-    remark = String(result.value || '').trim() || undefined
-  } catch { return }
-  busy.value = true
-  try { await api.value.rejectSubmission(sub.submissionId, remark); ElMessage.success('已拒绝'); await loadSubmissions() }
-  catch (failure) { await handleError(failure) } finally { busy.value = false }
 }
 // 发布者发起会话必须显式指定对方（后端按 发布者+创作者+任务 幂等建会话）
 async function openChat(targetUserId) {

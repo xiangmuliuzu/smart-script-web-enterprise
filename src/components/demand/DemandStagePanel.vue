@@ -17,6 +17,8 @@
         <p class="sc-meta">时限 {{ durationText(stage) }} · <span :class="dueClass(stage)">截止 {{ timeText(stage.dueAt) }}</span><template v-if="stage.startedAt"> · 开始于 {{ timeText(stage.startedAt) }}</template></p>
         <template v-if="stage.workId || stage.deliverableDesc">
           <p class="sc-meta">交付作品：《{{ stage.workTitle || ('作品#' + stage.workId) }}》<template v-if="stage.submittedAt"> · 提交于 {{ timeText(stage.submittedAt) }}</template></p>
+          <!-- 验收前得能读到创作者交的剧本正文，否则只能凭一句交付说明拍板 -->
+          <button v-if="stage.workId" class="btn light small wv-open" type="button" @click="openWork(stage)">查看交付内容</button>
           <p v-if="stage.deliverableDesc" class="sc-desc">{{ stage.deliverableDesc }}</p>
           <a v-if="stage.deliverableUrl" class="sc-link" :href="stage.deliverableUrl" target="_blank" rel="noopener">交付物链接 ↗</a>
         </template>
@@ -70,6 +72,36 @@
         </div>
       </div>
     </PortalLayer>
+
+    <!-- 验收查阅交付作品：正文由 deliverable-work 端点一次性下发（只含本轮集数），不再逐章请求 -->
+    <PortalLayer v-model="workVisible" :title="`第 ${workStage?.stageOrder || ''} 轮 · 交付作品`" wide>
+      <div class="work-view">
+        <LoadState :pending="workPending" :error="workError" :retry="() => loadWork(workStage)" loading-text="正在加载交付内容…" />
+        <template v-if="!workPending && !workError && work">
+          <h4 class="wv-title">《{{ work.title || '未命名作品' }}》</h4>
+          <p class="sc-meta">{{ work.authorName ? '作者 ' + work.authorName + ' · ' : '' }}全 {{ work.episodeCount || 0 }} 集 · {{ work.wordCount || 0 }} 字 · 本轮验收到第 {{ work.episodeTo || work.chapters.length }} 集</p>
+          <p v-if="work.summary" class="wv-summary">{{ work.summary }}</p>
+          <p v-if="work.deliverableDesc" class="sc-desc">交付说明：{{ work.deliverableDesc }}</p>
+          <a v-if="work.deliverableUrl" class="sc-link" :href="work.deliverableUrl" target="_blank" rel="noopener">交付物链接 ↗</a>
+          <p class="wv-scope">当前可见 {{ work.readableCount }} 集正文{{ work.episodeTo ? '' : '（该轮未限定集数，全本可见）' }}。未交付集数只列出标题，读不到内容。</p>
+          <ol class="wv-chapters">
+            <li v-for="chapter in work.chapters" :key="chapter.chapterId" class="wv-chapter">
+              <div class="wv-chapter-head">
+                <b>第 {{ chapter.chapterNo }} 集 · {{ chapter.chapterTitle || ('章节#' + chapter.chapterId) }}</b>
+                <span v-if="chapter.wordCount" class="wv-words">{{ chapter.wordCount }} 字</span>
+                <span v-if="!chapter.readable" class="wv-off">后续轮次交付</span>
+                <button v-else type="button" class="history-toggle" @click="toggleChapter(chapter)">{{ opened[chapter.chapterId] ? '收起 ▴' : '看正文 ▾' }}</button>
+              </div>
+              <div v-if="chapter.readable && opened[chapter.chapterId]" class="wv-content">
+                <p v-for="(line, i) in chapterParagraphs(chapter)" :key="i">{{ line }}</p>
+                <p v-if="!chapterParagraphs(chapter).length" class="sc-meta">该集暂无正文内容。</p>
+              </div>
+            </li>
+            <li v-if="!work.chapters.length" class="sc-meta">该作品暂无章节目录。</li>
+          </ol>
+        </template>
+      </div>
+    </PortalLayer>
   </section>
 </template>
 <script setup>
@@ -92,6 +124,13 @@ const historyOpen = reactive({})
 const current = ref(null)
 const selfVisible = ref(false)
 const selfForm = reactive({ days: null, hours: null })
+// 验收查阅交付作品（抽屉）：一次拉全该轮可见集数，逐集展开只切本地开关
+const workVisible = ref(false)
+const workStage = ref(null)
+const work = ref(null)
+const workPending = ref(false)
+const workError = ref('')
+const opened = reactive({})
 // 倒计时每分钟翻一次用的心跳值（与定时器 id 分离，避免把 id 当成响应式变量写回）
 const tick = ref(0)
 let clockTimer = null
@@ -165,6 +204,29 @@ async function doSelfExtend() {
     emit('changed')
   } catch (failure) { await handleError(failure) } finally { busy.value = false }
 }
+// 正文按行分段渲染：后端已转纯文本，这里用文本插值而不是 v-html，不把创作者内容当 HTML 执行
+const chapterParagraphs = chapter => String(chapter?.content || '').split(/\n+/).map(line => line.trim()).filter(Boolean)
+function toggleChapter(chapter) { opened[chapter.chapterId] = !opened[chapter.chapterId] }
+async function loadWork(stage) {
+  if (!stage || !stage.workId) { workError.value = '本轮尚未交付作品'; return }
+  workPending.value = true; workError.value = ''
+  try {
+    const result = await api.value.deliverableWork(props.demand.demandId, stage.stageId)
+    // chapters 可能缺列（后端无章节时），补齐空数组，下面直接取 .length
+    work.value = { ...result, chapters: result?.chapters || [] }
+  } catch (failure) {
+    work.value = null
+    if (!handleError(failure, { silent: true })) workError.value = failure.message || '交付内容加载失败'
+  } finally { workPending.value = false }
+}
+function openWork(stage) {
+  workStage.value = stage
+  work.value = null
+  workError.value = ''
+  Object.keys(opened).forEach(key => delete opened[key])
+  workVisible.value = true
+  loadWork(stage)
+}
 onMounted(async () => {
   await reload()
   clockTimer = setInterval(() => { tick.value++ }, 60000)
@@ -198,6 +260,19 @@ defineExpose({ reload })
 .sc-ok { color: #67c23a }
 .sc-desc { margin: 6px 0 0; white-space: pre-wrap; font-size: 13px; color: #606266 }
 .sc-link { display: inline-block; margin-top: 4px; font-size: 12px; color: #409eff }
+/* 验收查阅抽屉 */
+.wv-open { margin-left: 6px }
+.work-view { display: flex; flex-direction: column; gap: 8px }
+.wv-title { margin: 0; font-size: 17px; color: #303133 }
+.wv-summary { margin: 0; font-size: 13px; line-height: 1.7; color: #606266 }
+.wv-scope { margin: 0; padding: 8px 11px; border-radius: 6px; background: #fdf6ec; color: #e6a23c; font-size: 12px }
+.wv-chapters { list-style: none; margin: 6px 0 0; padding: 0 }
+.wv-chapter { border: 1px solid #ebeef5; border-radius: 6px; margin-bottom: 8px; background: #fff }
+.wv-chapter-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 12px; font-size: 13px; color: #303133 }
+.wv-words { font-size: 12px; color: #909399 }
+.wv-off { font-size: 11.5px; color: #c0c4cc }
+.wv-content { padding: 4px 14px 12px; border-top: 1px dashed #ebeef5; font-size: 14px; line-height: 1.9; color: #5c5850 }
+.wv-content p { margin: 8px 0 0; white-space: pre-wrap }
 .sc-extend { margin-top: 10px; padding: 9px 12px; border: 1px dashed #e6a23c; border-radius: 6px; background: #fdf6ec }
 .sc-extend .sc-meta { margin-top: 0 }
 .sc-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap }

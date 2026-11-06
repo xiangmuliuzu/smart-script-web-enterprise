@@ -7,7 +7,7 @@ import Layout from './layout/index.vue'
 const routes = [
   { path: 'dashboard', component: () => import('./views/PurchaseDesk.vue'), meta: { title: '个人版权采购中心' } }
 ]
-// 任务广场是发布者侧的独立业务域（发布/托管/选标/逐轮验收），与采购工作台平级成顶级页签，
+// 任务广场是发布者侧的独立业务域（发布/托管/逐轮验收），与采购工作台平级成顶级页签，
 // 因此挂在同一个 Layout 下作为第二条顶级路由，而不是塞进交易抽屉的 Tab。
 const demandRoutes = [
   { path: '', component: () => import('./views/demand/Square.vue'), meta: { title: '任务广场' } },

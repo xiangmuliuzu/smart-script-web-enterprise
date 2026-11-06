@@ -8,6 +8,7 @@ import {
   money,
   stageStatusLabel
 } from '../src/utils/demand.js'
+import { deliverableWork } from '../src/api/enterprise.js'
 
 // 后端权威枚举：ESCROW_* 是发布者放进平台、按轮次放款的预算款，
 // DEPOSIT_* 是创作者缴的履约保证金（=预算/10），完成整单后退还。
@@ -49,4 +50,19 @@ test('任务金额一律两位小数', () => {
   assert.equal(money(60050), '¥600.50')
   assert.equal(money(0), '¥0.00')
   assert.equal(money(null), '¥0.00')
+})
+
+// 验收查阅的后端口径：交付作品一定未上架（deliverStage 拒 on_shelf 交付），
+// content 域读者接口只认上架作品、作者接口只认本人，发布者两条都取不到，
+// 所以只能走 trade 域的 deliverable-work。这里钉住 URL，防止改回读者接口后验收页空白。
+test('查看交付内容走 trade 域的 deliverable-work，不打 content 读者接口', async () => {
+  globalThis.localStorage = { getItem: () => 'test-token', removeItem: () => {} }
+  const requests = []
+  globalThis.fetch = async (url, options) => {
+    requests.push([url, options.method])
+    return { ok: true, status: 200, json: async () => ({ code: 200, data: { workId: 92, chapters: [{ chapterId: 1, readable: true }] } }) }
+  }
+  const result = await deliverableWork(56, 80)
+  assert.deepEqual(requests, [['/dev-api/api/v1/trade/demand/56/stage/80/deliverable-work', 'GET']])
+  assert.equal(result.chapters.length, 1)
 })
