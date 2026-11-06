@@ -9,41 +9,23 @@
         <LoadState v-if="pending || error" :pending="pending" :error="error" :retry="load" />
         <template v-else>
           <div class="profile-summary">
-            <div class="profile-avatar">
+            <label class="profile-avatar avatar-picker" :class="{ disabled: uploading || saving }" title="点击更换头像">
+              <input type="file" accept="image/png,image/jpeg" aria-label="更换头像" :disabled="uploading || saving" @change="pickAvatar($event.target.files[0]); $event.target.value = ''">
               <img v-if="avatar && !broken" :src="avatar" :alt="form.nickname + '的头像'" @error="broken = true">
               <template v-else>{{ avatarText(form.nickname) }}</template>
-            </div>
+            </label>
             <div>
-              <b>{{ form.nickname || '未设置昵称' }}</b>
+              <b>{{ profile?.nickname || '未设置昵称' }}</b>
               <span>{{ realNameLabel }}</span>
             </div>
           </div>
-          <div class="field">
-            <label>账号头像</label>
-            <label class="btn light small upload-control">
-              <input type="file" accept="image/png,image/jpeg" :disabled="uploading" @change="pickAvatar($event.target.files[0]); $event.target.value = ''">
-              <span>{{ uploading ? '上传中…' : '更换头像' }}</span>
-            </label>
-          </div>
-          <div class="field">
-            <label>昵称</label>
-            <input v-model="form.nickname" maxlength="15" placeholder="请输入昵称">
-          </div>
-          <div class="field">
-            <label>手机号</label>
-            <!-- 后端只下发掩码手机号，不可编辑。 -->
-            <input :value="profile?.phoneMasked || '未绑定'" disabled>
-          </div>
-          <div class="field">
-            <label>常用邮箱</label>
-            <!-- 后端用户资料没有邮箱字段。 -->
-            <input :value="NOT_OPEN" disabled>
-          </div>
-          <div class="field">
-            <label>个人简介</label>
-            <textarea v-model="form.bio" maxlength="200" placeholder="介绍一下你的采购偏好"></textarea>
-          </div>
-          <button class="btn" style="margin-top:18px" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存修改' }}</button>
+          <div class="profile-details-head"><h3>基本资料</h3><button v-if="!editing" type="button" class="btn ghost small" :disabled="uploading" @click="editing = true">修改</button></div>
+          <template v-if="editing">
+            <div class="field"><label for="profile-nickname">昵称</label><input id="profile-nickname" v-model="form.nickname" maxlength="15" placeholder="请输入昵称"></div>
+            <div class="field"><label for="profile-bio">个人简介</label><textarea id="profile-bio" v-model="form.bio" maxlength="200" placeholder="介绍一下你的采购偏好"></textarea></div>
+            <div class="profile-actions"><button class="btn" :disabled="saving || uploading" @click="save">{{ saving ? '保存中…' : '保存修改' }}</button><button type="button" class="btn ghost" :disabled="saving || uploading" @click="cancelEdit">取消</button></div>
+          </template>
+          <p v-else class="rights-note">{{ profile?.bio || '暂无个人简介' }}</p>
           <hr style="border:0;border-top:1px solid var(--line);margin:28px 0">
           <h3>实名认证</h3>
           <p class="rights-note"><span class="tag" :class="realNameTone">{{ realNameLabelText }}</span> {{ realNameNote }}</p>
@@ -134,7 +116,7 @@ import { useRouter } from 'vue-router'
 import LoadState from './LoadState.vue'
 import { usePortal } from '../utils/portal.js'
 import { clearSession } from '../auth.js'
-import { NOT_OPEN, avatarText, avatarUrl, realNameStatus, state, validateImage } from '../utils/enterprise.js'
+import { avatarText, avatarUrl, realNameStatus, state, validateImage } from '../utils/enterprise.js'
 
 const props = defineProps({ open: Boolean })
 const emit = defineEmits(['close', 'saved'])
@@ -143,6 +125,7 @@ const router = useRouter()
 const pending = ref(false)
 const error = ref('')
 const saving = ref(false)
+const editing = ref(false)
 const uploading = ref(false)
 const verifying = ref(false)
 const identityError = ref('')
@@ -194,6 +177,7 @@ async function load() {
     form.avatar = profile.value?.avatar || ''
     broken.value = false
     realName.value = await api.value.getRealName().catch(() => null)
+    editing.value = false
     resetIdentity()
   } catch (failure) {
     if (!handleError(failure, { silent: true })) error.value = failure.message || '加载个人资料失败'
@@ -211,14 +195,19 @@ async function pickAvatar(file) {
   try {
     const result = await api.value.uploadAvatar(file)
     if (!result?.url) throw new Error('头像上传响应缺少图片地址，请重试')
+    await api.value.saveProfile({ nickname: profile.value.nickname, avatar: result.url, bio: profile.value.bio || '' })
     form.avatar = result.url
+    profile.value.avatar = result.url
     broken.value = false
-    // 立刻写回资料，否则只改本地状态、顶栏与刷新后都会回到旧头像。
-    await api.value.saveProfile({ nickname: form.nickname, avatar: result.url, bio: form.bio })
     Object.assign(user.value, { avatar: result.url })
     ElMessage.success('头像已更新')
     emit('saved')
   } catch (failure) { handleError(failure) } finally { uploading.value = false }
+}
+function cancelEdit() {
+  form.nickname = profile.value?.nickname || ''
+  form.bio = profile.value?.bio || ''
+  editing.value = false
 }
 async function save() {
   if (saving.value) return
@@ -329,3 +318,12 @@ async function confirmPhone() {
 watch(() => props.open, open => { if (open) load() }, { immediate: true })
 onUnmounted(() => { clearInterval(countdownTimer); stepUpToken.value = ''; phoneCode.value = ''; Object.assign(password, { oldPassword: '', newPassword: '', confirm: '' }) })
 </script>
+
+<style scoped>
+.avatar-picker { position: relative; cursor: pointer; }
+.avatar-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.avatar-picker:focus-within { outline: 2px solid currentColor; outline-offset: 3px; }
+.avatar-picker.disabled { cursor: wait; }
+.profile-details-head, .profile-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.profile-actions { justify-content: flex-start; margin-top: 18px; }
+</style>
