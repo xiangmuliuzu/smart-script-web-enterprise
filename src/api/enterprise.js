@@ -141,6 +141,7 @@ export const changePassword = form => data('/api/v1/auth/password/change', { met
 // 换绑手机四步：old/send → old/verify（换取 stepUpToken）→ new/send → confirm。
 export const phoneChange = (step, body) => data('/api/v1/users/me/phone/change/' + step, { method: 'POST', body })
 
+export const listFeedback = async () => asList(await data('/api/v1/feedback'))
 export const sendFeedback = form => data('/api/v1/feedback', { method: 'POST', body: { category: form.category, content: form.content, attachmentRef: form.attachmentRef } })
 
 /* ---------------- 任务广场（需求悬赏）：企业端=发布者侧，可发布/托管/验收/延期决策，不可接单 ---------------- */
