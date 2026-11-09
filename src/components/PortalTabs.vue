@@ -20,8 +20,9 @@ function move(event, index) {
 .dtabs button { flex: none; padding: 11px 0; background: none; border: 0; border-bottom: 2px solid transparent; color: #5c5850; font-size: 14px; white-space: nowrap; cursor: pointer }
 .dtabs button:hover { color: var(--brand) }
 .dtabs button[aria-selected='true'] { border-bottom-color: var(--brand); color: #303133; font-weight: 500 }
-.tabs { display: flex; gap: 20px; border-bottom: 1px solid #ebeef5; margin-top: 22px; overflow-x: auto }
-.tabs button { background: none; border: 0; padding: 9px 0; font-size: 14px; color: #5c5850; cursor: pointer; border-bottom: 2px solid transparent }
-.tabs button[aria-selected='true'] { border-bottom-color: var(--brand); color: #303133; font-weight: 500 }
+.tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--line, #ebeef5); margin-top: 22px; overflow-x: auto }
+.tabs button { background: none; border: 0; padding: 9px 0; font-size: 14px; color: var(--muted, #5c5850); cursor: pointer; border-bottom: 2px solid transparent }
+.tabs button:hover { color: var(--ink, #303133) }
+.tabs button[aria-selected='true'] { border-bottom-color: var(--brand); color: var(--ink, #303133); font-weight: 500 }
 .tab-count { margin-left: 6px; min-width: 16px; padding: 0 5px; background: #f56c6c; color: #fff; font-size: 10.5px; border-radius: 10px; display: inline-block; text-align: center }
 </style>

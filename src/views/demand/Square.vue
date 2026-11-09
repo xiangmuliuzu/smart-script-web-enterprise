@@ -1,36 +1,76 @@
 <template>
   <div class="demand-page">
     <DemandTabs />
-    <div class="hero">
-      <div class="hero-item"><b>{{ stats.availableCount ?? '-' }}</b><span>在招任务</span></div>
-      <div class="hero-item"><b>{{ prizePoolText }}</b><span>在途奖池</span></div>
-      <div class="hero-item"><b>{{ stats.todayNewCount ?? '-' }}</b><span>今日新发布</span></div>
-    </div>
-    <p class="page-note">任务广场是市场行情，只读展示「征集中且发布者已完成托管付款」的任务。你要发起创作需求请在「我发布的」里发布任务。</p>
 
-    <div class="chips">
-      <button type="button" class="chip-genre" :data-on="!filters.genreId" @click="pickGenre(null)">全部题材<em>{{ genreCounts.all ?? 0 }}</em></button>
-      <button v-for="option in genreOptions" :key="option.value" type="button" class="chip-genre" :data-on="Number(filters.genreId) === option.value" @click="pickGenre(option.value)">
-        {{ option.label }}<em>{{ genreCounts[option.value] || 0 }}</em>
-      </button>
-    </div>
+    <header class="square-head">
+      <div class="head-copy">
+        <p class="kicker">TASK SQUARE · MARKET VIEW</p>
+        <h1>任务广场</h1>
+        <p class="head-desc">任务广场是市场行情，只读展示「征集中且发布者已完成托管付款」的任务。你要发起创作需求请在「我发布的」里发布任务。</p>
+      </div>
+      <dl class="head-stats">
+        <div><dt>在招任务</dt><dd>{{ stats.availableCount ?? '—' }}</dd></div>
+        <div><dt>在途奖池</dt><dd class="money">{{ prizePoolText }}</dd></div>
+        <div><dt>今日新发布</dt><dd>{{ stats.todayNewCount ?? '—' }}</dd></div>
+      </dl>
+    </header>
 
-    <form class="filters" @submit.prevent="applyFilters">
-      <label class="field">搜索<input v-model="filters.keyword" type="search" placeholder="标题或任务编号"></label>
-      <label class="field">预算下限（元）<input v-model.number="filters.budgetMinYuan" type="number" min="0" placeholder="0"></label>
-      <label class="field">预算上限（元）<input v-model.number="filters.budgetMaxYuan" type="number" min="0" placeholder="不限"></label>
-      <label class="field">最少集数<input v-model.number="filters.episodesMin" type="number" min="0" placeholder="不限"></label>
-      <label class="field">排序
-        <select v-model="filters.sort">
-          <option v-for="option in SORT_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
-        </select>
-      </label>
-      <button class="btn small" type="submit">筛选</button>
-      <button class="btn ghost small" type="button" @click="resetFilters">清空</button>
+    <form class="square-filter" @submit.prevent="applyFilters">
+      <div class="toolbar">
+        <label class="field search-field">搜索<input v-model="filters.keyword" type="search" placeholder="输入任务标题或任务编号"></label>
+        <label class="field sort-field">排序
+          <select v-model="filters.sort" @change="applyFilters">
+            <option v-for="option in SORT_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+        </label>
+        <button class="filter-toggle" type="button" :aria-expanded="filterOpen" @click="filterOpen = !filterOpen">
+          {{ filterOpen ? '收起筛选' : '筛选' }}<span v-if="filterCount" class="filter-tag">{{ filterCount }}</span>
+        </button>
+      </div>
+
+      <div v-if="filterOpen" class="filter-panel">
+        <div class="filter-block genre-block">
+          <p class="filter-label">题材</p>
+          <div class="genre-pager">
+            <button v-if="genrePage > 0" class="genre-arrow" type="button" aria-label="上一页题材" @click="turnGenrePage(-1)">‹</button>
+            <div class="genre-grid" :class="{ paged: genrePageCount > 1 }" @pointerdown="onGenrePointerDown" @pointerup="onGenrePointerUp">
+              <button v-for="chip in pagedGenreChips" :key="String(chip.id)" type="button" class="chip-genre" :data-on="filters.genreId === chip.id" @click="pickGenre(chip.id)">
+                {{ chip.label }}<em>{{ chip.count }}</em>
+              </button>
+            </div>
+            <button v-if="genrePage < genrePageCount - 1" class="genre-arrow" type="button" aria-label="下一页题材" @click="turnGenrePage(1)">›</button>
+          </div>
+        </div>
+        <div class="filter-block">
+          <p class="filter-label">预算区间（元）</p>
+          <div class="range-row">
+            <input v-model.number="filters.budgetMinYuan" type="number" min="0" placeholder="最低">
+            <span>—</span>
+            <input v-model.number="filters.budgetMaxYuan" type="number" min="0" placeholder="最高">
+          </div>
+        </div>
+        <div class="filter-block">
+          <p class="filter-label">最少集数</p>
+          <input v-model.number="filters.episodesMin" class="episodes-input" type="number" min="0" placeholder="不限">
+        </div>
+        <div class="filter-acts">
+          <button class="btn small" type="submit">应用</button>
+          <button class="btn ghost small" type="button" @click="resetFilters">清空</button>
+        </div>
+      </div>
     </form>
 
-    <LoadState :pending="pending" :error="error" :retry="load" />
-    <p v-if="!pending && !error && !list.length" class="empty-text">当前条件下暂无在招任务</p>
+    <div v-if="filterCount" class="filter-banner">
+      <span>已启用 {{ filterCount }} 项筛选</span>
+      <button class="filter-clear" type="button" @click="clearFilters">清除</button>
+    </div>
+
+    <div class="result-head">
+      <h2>{{ resultTitle }}</h2>
+      <span class="count">共 {{ total }} 条</span>
+    </div>
+
+    <LoadState :pending="pending" :error="error" :retry="load" :empty="!pending && !error && !list.length" empty-text="当前条件下暂无在招任务" />
     <DemandCard v-for="item in list" :key="item.demandId" :demand="item" mode="square" @open="goDetail">
       <button class="btn ghost small" @click.stop="goDetail(item.demandId)">查看</button>
     </DemandCard>
@@ -48,7 +88,7 @@ import { usePortal } from '../../utils/portal.js'
 import LoadState from '../../components/LoadState.vue'
 import DemandTabs from '../../components/demand/DemandTabs.vue'
 import DemandCard from '../../components/demand/DemandCard.vue'
-import { money, genreOptions, SORT_OPTIONS } from '../../utils/demand.js'
+import { money, genreOptions, genreLabel, SORT_OPTIONS } from '../../utils/demand.js'
 const { api, handleError } = usePortal()
 const router = useRouter()
 const route = useRoute()
@@ -60,7 +100,11 @@ const pending = ref(false)
 const error = ref('')
 const stats = ref({})
 const filters = reactive({ keyword: '', genreId: null, budgetMinYuan: null, budgetMaxYuan: null, episodesMin: null, sort: 'created:desc' })
+const filterOpen = ref(false)
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
+// 生效中的筛选条件数（题材/预算/集数），供按钮角标与提示条
+const filterCount = computed(() => (filters.genreId ? 1 : 0) + (Number(filters.budgetMinYuan) > 0 ? 1 : 0) + (Number(filters.budgetMaxYuan) > 0 ? 1 : 0) + (Number(filters.episodesMin) > 0 ? 1 : 0))
+const resultTitle = computed(() => (filters.genreId ? `在招任务 · ${genreLabel(filters.genreId)}` : '在招任务'))
 // 奖池口径与列表一致（公开可接单），后端给的是分
 const prizePoolText = computed(() => money(stats.value.prizePoolFen))
 // 题材角标直接用后端的 genreCounts（按 genreId 聚合），字典只负责取名
@@ -69,6 +113,29 @@ const genreCounts = computed(() => {
   for (const row of stats.value.genreCounts || []) map[Number(row.genreId)] = Number(row.count) || 0
   return map
 })
+// 题材收进筛选面板：横排自动换行，一页 40 项（8 列 × 5 行），多页时可左右滑或点箭头翻页，不显示页码
+const GENRE_PAGE_SIZE = 40
+const genrePage = ref(0)
+const genreChips = computed(() => [
+  { id: null, label: '全部', count: genreCounts.value.all ?? 0 },
+  ...genreOptions.map(option => ({ id: option.value, label: option.label, count: genreCounts.value[option.value] || 0 })),
+])
+const genrePageCount = computed(() => Math.max(1, Math.ceil(genreChips.value.length / GENRE_PAGE_SIZE)))
+const pagedGenreChips = computed(() => genreChips.value.slice(genrePage.value * GENRE_PAGE_SIZE, (genrePage.value + 1) * GENRE_PAGE_SIZE))
+function turnGenrePage(offset) {
+  const next = genrePage.value + offset
+  if (next < 0 || next >= genrePageCount.value) return
+  genrePage.value = next
+}
+let genreDragX = null
+function onGenrePointerDown(event) { genreDragX = event.clientX }
+function onGenrePointerUp(event) {
+  if (genreDragX == null) return
+  const dx = event.clientX - genreDragX
+  genreDragX = null
+  if (Math.abs(dx) < 40) return
+  turnGenrePage(dx < 0 ? 1 : -1)
+}
 function goDetail(id) { router.push(`/demand/${id}`) }
 async function load() {
   pending.value = true; error.value = ''
@@ -93,10 +160,12 @@ async function loadMeta() {
 }
 function applyFilters() { pageNum.value = 1; load() }
 function pickGenre(genreId) { filters.genreId = genreId; applyFilters() }
+// 清空只重置筛选条件，保留搜索词与排序（与 APP 筛选弹层的“清空”口径一致）
 function resetFilters() {
-  Object.assign(filters, { keyword: '', genreId: null, budgetMinYuan: null, budgetMaxYuan: null, episodesMin: null, sort: 'created:desc' })
+  Object.assign(filters, { genreId: null, budgetMinYuan: null, budgetMaxYuan: null, episodesMin: null })
   applyFilters()
 }
+function clearFilters() { resetFilters() }
 function turn(offset) {
   const next = pageNum.value + offset
   if (next < 1 || next > pageCount.value) return
@@ -109,20 +178,69 @@ onMounted(async () => {
 })
 </script>
 <style scoped>
-.demand-page { padding: 4px 0 24px }
-.hero { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px }
-.hero-item { flex: 1 1 150px; border: 1px solid #ebeef5; border-radius: 8px; padding: 12px 14px; background: #fff }
-.hero-item b { display: block; font-size: 21px; color: #409eff }
-.hero-item span { font-size: 12px; color: #909399 }
-.page-note { margin: 0 0 12px; padding: 9px 12px; border-radius: 6px; background: #f5f7fa; color: #909399; font-size: 12.5px }
-.chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px }
-.chip-genre { border: 1px solid #dcdfe6; background: #fff; border-radius: 14px; padding: 4px 12px; font-size: 12.5px; color: #606266; cursor: pointer }
-.chip-genre em { font-style: normal; margin-left: 5px; color: #f56c6c; font-weight: 600 }
-.chip-genre[data-on="true"] { border-color: #409eff; color: #409eff; background: #ecf5ff }
-.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin: 12px 0 14px }
-.filters .field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: #606266 }
-.filters .field input, .filters .field select { padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px; background: #fff; min-width: 120px }
-.empty-text { font-size: 13px; color: #909399 }
-.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px }
-.pager-text { font-size: 12px; color: #909399 }
+.demand-page { padding: 0 0 30px }
+
+/* 页头：左侧标题说明，右侧三项统计，双线收口；企业端沿用透明纸底，不加白卡片 */
+.square-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 36px; padding: 6px 0 18px; border-bottom: 2px solid var(--ink) }
+.kicker { margin: 0 0 9px; font-size: 11.5px; letter-spacing: .22em; color: var(--muted) }
+.square-head h1 { margin: 0; font-size: 30px; line-height: 1.2; letter-spacing: .06em }
+.head-desc { margin: 9px 0 0; max-width: 60ch; font-size: 13.5px; line-height: 1.75; color: var(--muted) }
+.head-stats { display: flex; flex: none; margin: 0; padding-bottom: 2px }
+.head-stats > div { min-width: 118px; padding: 0 20px; border-left: 1px solid var(--line) }
+.head-stats > div:first-child { padding-left: 0; border-left: 0 }
+.head-stats > div:last-child { padding-right: 0 }
+.head-stats dt { font-size: 12px; letter-spacing: .06em; color: var(--muted); white-space: nowrap }
+.head-stats dd { margin: 5px 0 0; font-family: var(--serif); font-size: 23px; line-height: 1.15; font-variant-numeric: tabular-nums; white-space: nowrap }
+.head-stats dd.money { color: var(--red) }
+
+/* 工具带：搜索 + 排序 + 筛选入口 */
+.toolbar { display: flex; align-items: flex-end; gap: 12px; margin-top: 18px; padding-bottom: 13px; border-bottom: 1px solid var(--line) }
+.toolbar .field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted) }
+.toolbar .field.search-field { flex: 1 1 auto; min-width: 220px }
+.toolbar .field.sort-field { flex: 0 0 180px }
+.toolbar .field input, .toolbar .field select { width: 100%; height: 36px; padding: 0 10px; border: 1px solid #c9c4b8; border-radius: var(--r); background: transparent; color: var(--ink); font-size: 13.5px }
+.toolbar .field input:focus, .toolbar .field select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brandsoft) }
+.filter-toggle { display: inline-flex; align-items: center; gap: 6px; flex: none; height: 36px; padding: 0 4px; border: 0; background: none; color: var(--brand); font-size: 13px }
+.filter-toggle:hover { text-decoration: underline }
+.filter-tag { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--red); color: #fff; font-size: 10.5px; line-height: 16px; text-align: center }
+
+/* 筛选面板：题材收进面板，横排换行；预算/集数并排 */
+.filter-panel { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 24px; padding: 16px 0 4px; border-bottom: 1px solid var(--line) }
+.filter-block { display: flex; flex-direction: column; gap: 6px; flex: 1 1 230px }
+.filter-block.genre-block { flex-basis: 100% }
+.filter-label { margin: 0; font-size: 12.5px; color: var(--muted) }
+.genre-pager { display: flex; align-items: flex-start; gap: 10px }
+.genre-grid { flex: 1; display: flex; flex-wrap: wrap; gap: 7px; min-width: 0 }
+.genre-grid.paged { min-height: 187px; align-content: flex-start }
+.genre-arrow { flex: none; align-self: center; width: 26px; height: 26px; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer }
+.genre-arrow:hover { border-color: var(--brand); color: var(--brand) }
+.chip-genre { display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 11px; border: 1px solid #c9c4b8; border-radius: var(--r); background: transparent; color: var(--muted); font-size: 12.5px; line-height: 1.5; transition: color .15s, border-color .15s, background .15s }
+.chip-genre em { font-style: normal; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums }
+.chip-genre:hover { border-color: var(--brand2); color: var(--ink); background: var(--soft) }
+.chip-genre[data-on="true"] { background: var(--brand); border-color: var(--brand); color: #fff }
+.chip-genre[data-on="true"] em { color: rgba(255, 255, 255, .72) }
+.range-row { display: flex; align-items: center; gap: 8px }
+.range-row input { flex: 1; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid #c9c4b8; border-radius: var(--r); background: transparent; color: var(--ink); font-size: 13.5px }
+.range-row span { color: var(--muted) }
+.episodes-input { width: 100%; height: 36px; padding: 0 10px; border: 1px solid #c9c4b8; border-radius: var(--r); background: transparent; color: var(--ink); font-size: 13.5px }
+.range-row input:focus, .episodes-input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brandsoft) }
+.filter-acts { display: flex; justify-content: flex-end; gap: 8px; flex: 1 1 100% }
+.filter-acts .btn { height: 36px }
+.filter-banner { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 12px; border-radius: var(--r); background: var(--brandsoft); font-size: 12.5px; color: var(--muted) }
+.filter-clear { margin-left: auto; border: 0; background: none; color: var(--brand); font-size: 12.5px; font-weight: 600; cursor: pointer }
+
+/* 结果区 */
+.result-head { display: flex; align-items: baseline; gap: 12px; margin: 22px 0 12px; padding-bottom: 9px; border-bottom: 1px solid var(--line) }
+.result-head h2 { margin: 0; font-size: 16.5px }
+.result-head .count { font-size: 12.5px; color: var(--muted) }
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 16px }
+.pager-text { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums }
+
+@media (max-width: 900px) {
+  .square-head { flex-direction: column; align-items: stretch; gap: 16px }
+  .head-stats { padding-top: 14px; border-top: 1px solid var(--line) }
+  .head-stats > div { flex: 1 1 0; min-width: 0; padding: 0 16px }
+  .head-stats > div:first-child { padding-left: 0 }
+  .square-head h1 { font-size: 26px }
+}
 </style>

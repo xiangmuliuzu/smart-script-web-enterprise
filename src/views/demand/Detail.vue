@@ -18,7 +18,7 @@
       <dl class="dd-info">
         <div><dt>任务编号</dt><dd>{{ demand.demandNo }}</dd></div>
         <div><dt>接单截止</dt><dd>{{ dateText(demand.deadline) }}</dd></div>
-        <div><dt>总集数</dt><dd>{{ isStaged ? demand.totalEpisodes + ' 集 · 逐轮验收' : '未设定 · 整单时限 ' + (demand.durationHours || '-') + ' 小时' }}</dd></div>
+        <div><dt>总集数</dt><dd>{{ isStaged ? demand.totalEpisodes + ' 集 · 逐轮验收' : '未设定 · 整单时限 ' + formatHours(demand.durationHours) }}</dd></div>
         <div><dt>托管金额</dt><dd>{{ money(demand.escrowAmount) }} · {{ escrowStatusLabel(demand.escrowStatus) }}</dd></div>
         <div><dt>创作者押金</dt><dd>{{ depositStatusLabel(demand.depositStatus) }}<template v-if="Number(demand.depositAmount) > 0">（{{ money(demand.depositAmount) }}）</template></dd></div>
         <div v-if="demand.acceptedCreatorId || demand.acceptedCreatorName" class="dd-span-2">
@@ -72,7 +72,7 @@ import { usePortal } from '../../utils/portal.js'
 import LoadState from '../../components/LoadState.vue'
 import PortalLayer from '../../components/PortalLayer.vue'
 import DemandStagePanel from '../../components/demand/DemandStagePanel.vue'
-import { demandStatusLabel, escrowStatusLabel, depositStatusLabel, money, dateText, timeText, genreLabel } from '../../utils/demand.js'
+import { demandStatusLabel, escrowStatusLabel, depositStatusLabel, money, dateText, timeText, genreLabel, formatHours } from '../../utils/demand.js'
 const { api, openTrade, handleError } = usePortal()
 const route = useRoute()
 const router = useRouter()

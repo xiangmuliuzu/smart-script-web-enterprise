@@ -14,7 +14,7 @@
           <span class="sc-amount">{{ money(stage.amount) }}</span>
           <span class="sc-status">{{ stageStatusLabel(stage) }}</span>
         </div>
-        <p class="sc-meta">时限 {{ durationText(stage) }} · <span :class="dueClass(stage)">截止 {{ timeText(stage.dueAt) }}</span><template v-if="stage.startedAt"> · 开始于 {{ timeText(stage.startedAt) }}</template></p>
+        <p class="sc-meta">时限 {{ durationText(stage) }}<template v-if="extendedHoursOf(stage) > 0"> · 已延时 {{ formatHours(extendedHoursOf(stage)) }}</template> · <span :class="dueClass(stage)">截止 {{ timeText(stage.dueAt) }}</span><template v-if="stage.startedAt"> · 开始于 {{ timeText(stage.startedAt) }}</template></p>
         <template v-if="stage.workId || stage.deliverableDesc">
           <p class="sc-meta">交付作品：《{{ stage.workTitle || ('作品#' + stage.workId) }}》<template v-if="stage.submittedAt"> · 提交于 {{ timeText(stage.submittedAt) }}</template></p>
           <!-- 验收前得能读到创作者交的剧本正文，否则只能凭一句交付说明拍板 -->
@@ -30,7 +30,7 @@
 
         <!-- 待我处理：延时申请（只处理当前待处理那条，既往记录永久保留） -->
         <div v-if="stage.extendStatus === 'pending'" class="sc-extend">
-          <p class="sc-meta sc-warn">创作者申请延时 {{ stage.extendDays || 0 }} 天 {{ stage.extendHours || 0 }} 小时<template v-if="stage.extendReason">：{{ stage.extendReason }}</template>（申请于 {{ timeText(stage.extendAppliedAt) }}）</p>
+          <p class="sc-meta sc-warn">创作者申请延时 {{ extendAskOf(stage) }}<template v-if="stage.extendReason">：{{ stage.extendReason }}</template>（申请于 {{ timeText(stage.extendAppliedAt) }}）</p>
           <div class="sc-actions">
             <button class="btn small" :disabled="busy" @click="decide(stage, true)">同意延时</button>
             <button class="btn ghost small" :disabled="busy" @click="decide(stage, false)">驳回</button>
@@ -48,7 +48,7 @@
           <ul v-if="historyOpen[stage.stageId]" class="history-list">
             <li v-if="!historyOf(stage.stageId).length" class="sc-meta">本轮暂无延时记录</li>
             <li v-for="row in historyOf(stage.stageId)" :key="row.applyId" class="history-row">
-              <span class="sc-meta">{{ extendTypeLabel(row.applyType) }} · {{ row.days || 0 }} 天 {{ row.hours || 0 }} 小时</span>
+              <span class="sc-meta">{{ extendTypeLabel(row.applyType) }} · {{ formatHours((Number(row.days) || 0) * 24 + (Number(row.hours) || 0)) }}</span>
               <span v-if="row.reason" class="sc-meta">原因：{{ row.reason }}</span>
               <span class="tone" :data-tone="extendTone(row.status, row.applyType)">{{ extendStatusLabel(row.status, row.applyType) }}</span>
               <span class="sc-meta">{{ timeText(row.appliedAt || row.createdAt) }}</span>
@@ -62,8 +62,7 @@
     <PortalLayer v-model="selfVisible" :title="`自主延时 - 第 ${current?.stageOrder || ''} 轮`" modal>
       <div class="dialog-body">
         <div class="field-row">
-          <label class="field">延长天数<input v-model.number="selfForm.days" type="number" min="0" max="30"></label>
-          <label class="field">延长小时<input v-model.number="selfForm.hours" type="number" min="0" max="72"></label>
+          <label class="field">延长小时数<input v-model.number="selfForm.hours" type="number" min="1" max="720" placeholder="例如 24"></label>
         </div>
         <p class="dialog-note">自主延时不经创作者申请、立即生效并顺延本轮截止时间，同时写入一条延时记录。当前截止：{{ timeText(current?.dueAt) }}</p>
         <div class="dialog-foot">
@@ -110,7 +109,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { usePortal } from '../../utils/portal.js'
 import LoadState from '../LoadState.vue'
 import PortalLayer from '../PortalLayer.vue'
-import { money, timeText, countdown, durationText, stageStatusLabel, stageTone, isActiveStage, extendTypeLabel, extendStatusLabel, extendTone, aiBrief, dueTone } from '../../utils/demand.js'
+import { money, timeText, countdown, durationText, stageStatusLabel, stageTone, isActiveStage, extendTypeLabel, extendStatusLabel, extendTone, aiBrief, dueTone, formatHours } from '../../utils/demand.js'
 const props = defineProps({ demand: { type: Object, required: true } })
 // 验收/延期动作会连带改变整单状态（completed / failed），父页需要重拉任务详情
 const emit = defineEmits(['changed'])
@@ -123,7 +122,7 @@ const busy = ref(false)
 const historyOpen = reactive({})
 const current = ref(null)
 const selfVisible = ref(false)
-const selfForm = reactive({ days: null, hours: null })
+const selfForm = reactive({ hours: null })
 // 验收查阅交付作品（抽屉）：一次拉全该轮可见集数，逐集展开只切本地开关
 const workVisible = ref(false)
 const workStage = ref(null)
@@ -135,11 +134,18 @@ const opened = reactive({})
 const tick = ref(0)
 let clockTimer = null
 let pollTimer = null
+let syncTimer = null
 
 const activeRound = computed(() => { void tick.value; return stages.value.find(stage => isActiveStage(stage)) || null })
 const reviewable = computed(() => stages.value.find(stage => stage.status === 'submitted') || null)
 const pendingExtend = computed(() => stages.value.find(stage => stage.extendStatus === 'pending') || null)
 const historyOf = stageId => history.value.filter(row => String(row.stageId) === String(stageId))
+// 已生效延时累计（申请通过 + 自主延时）：时限本身不变，界面直接标明已顺延多少
+const extendedHoursOf = stage => historyOf(stage.stageId)
+  .filter(row => row.status === 'approved')
+  .reduce((sum, row) => sum + (Number(row.days) || 0) * 24 + (Number(row.hours) || 0), 0)
+// 待处理申请量：统一按总小时折算展示
+const extendAskOf = stage => formatHours((Number(stage.extendDays) || 0) * 24 + (Number(stage.extendHours) || 0))
 // 只有已开始的轮次才需要发布者操作（未开始的轮次无可验收内容）
 const canAct = stage => !!stage.startedAt || stage.status === 'submitted'
 // 截止时间颜色跟阶段走（逾期红/临期橙/其余中性），不再无条件标红
@@ -176,7 +182,7 @@ async function review(stage, approved) {
   } catch (failure) { await handleError(failure) } finally { busy.value = false }
 }
 async function decide(stage, approved) {
-  try { await ElMessageBox.confirm(approved ? `同意本轮延时 ${stage.extendDays || 0} 天 ${stage.extendHours || 0} 小时？截止时间将同步顺延。` : '驳回该延时申请？本轮截止时间不变，逾期将失败终止。', '处理延时申请', { type: 'warning' }) }
+  try { await ElMessageBox.confirm(approved ? `同意本轮延时 ${formatHours((Number(stage.extendDays) || 0) * 24 + (Number(stage.extendHours) || 0))}？截止时间将同步顺延。` : '驳回该延时申请？本轮截止时间不变，逾期将失败终止。', '处理延时申请', { type: 'warning' }) }
   catch { return }
   busy.value = true
   try {
@@ -188,16 +194,15 @@ async function decide(stage, approved) {
 }
 function openSelfExtend(stage) {
   current.value = stage
-  Object.assign(selfForm, { days: null, hours: null })
+  Object.assign(selfForm, { hours: null })
   selfVisible.value = true
 }
 async function doSelfExtend() {
-  const days = Number(selfForm.days) || 0
   const hours = Number(selfForm.hours) || 0
-  if (days + hours <= 0) { ElMessage.warning('延长时长必须大于 0'); return }
+  if (hours <= 0) { ElMessage.warning('延长小时数必须大于 0'); return }
   busy.value = true
   try {
-    await api.value.selfExtendStage(props.demand.demandId, current.value.stageId, { days, hours })
+    await api.value.selfExtendStage(props.demand.demandId, current.value.stageId, { days: 0, hours })
     selfVisible.value = false
     ElMessage.success('已顺延本轮截止时间')
     await reload()
@@ -232,8 +237,10 @@ onMounted(async () => {
   clockTimer = setInterval(() => { tick.value++ }, 60000)
   // 有轮次卡在 AI 审核中时按 5 秒轮询取结果（与 APP 同口径）
   pollTimer = setInterval(() => { if (stages.value.some(stage => stage.status === 'ai_reviewing')) reload() }, 5000)
+  // 创作者申请延时/对方端状态变化后，定时同步截止时间，避免页面停留在旧时间
+  syncTimer = setInterval(() => { if (!busy.value) reload() }, 30000)
 })
-onUnmounted(() => { clearInterval(clockTimer); clearInterval(pollTimer) })
+onUnmounted(() => { clearInterval(clockTimer); clearInterval(pollTimer); clearInterval(syncTimer) })
 defineExpose({ reload })
 </script>
 <style scoped>

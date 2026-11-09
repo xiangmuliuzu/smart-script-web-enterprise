@@ -99,15 +99,17 @@ onMounted(() => {
 })
 </script>
 <style scoped>
-.demand-page { padding: 4px 0 24px }
-.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 10px }
-.page-note { margin: 0; flex: 1; padding: 9px 12px; border-radius: 6px; background: #f5f7fa; color: #909399; font-size: 12.5px; line-height: 1.6 }
+.demand-page { padding: 0 0 30px }
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 18px 0 4px }
+/* 提示条沿用用户端 .note 的赭石色系，不再用灰底圆角 */
+.page-note { margin: 0; flex: 1; padding: 10px 14px; border-left: 3px solid var(--gold); background: var(--goldsoft); color: #6b4e19; font-size: 12.5px; line-height: 1.7 }
 .page-head .btn { flex: none }
-.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin: 12px 0 14px }
-.filters .field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: #606266 }
-.filters .field input, .filters .field select { padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px; background: #fff; min-width: 140px }
-.empty-text { font-size: 13px; color: #909399 }
-.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px }
-.pager-text { font-size: 12px; color: #909399 }
-.btn.danger { color: #f56c6c; border-color: #fbc4c4 }
+.filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 16px 0 14px }
+.filters .field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted) }
+.filters .field input, .filters .field select { padding: 7px 10px; border: 1px solid #c9c4b8; border-radius: var(--r); font-size: 13.5px; background: transparent; color: var(--ink); min-width: 140px }
+.filters .btn { height: 34px }
+.empty-text { font-size: 13px; color: var(--muted) }
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 16px }
+.pager-text { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums }
+.btn.danger { color: var(--red); border-color: #e3c3be }
 </style>
