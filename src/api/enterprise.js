@@ -27,8 +27,8 @@ export async function listOrders({ status, pageNum = 1, pageSize = 10 } = {}) {
   const result = await data('/api/v1/trade/order/list?' + qs({ role: 'buyer', status, pageNum, pageSize }))
   return { total: Number(result?.total || 0), list: asList(result) }
 }
-// 发起支付宝沙箱付款，并由服务端核验支付结果。
-export const payOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay', { method: 'POST' })
+// 发起支付宝沙箱付款，并由服务端核验支付结果。refresh=true 时换新商户单号重出收款码（旧码失效后用）。
+export const payOrder = (orderId, refresh = false) => data('/api/v1/trade/order/' + id(orderId) + '/pay' + (refresh ? '?refresh=true' : ''), { method: 'POST' })
 export const confirmSandboxPayment = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay/confirm', { method: 'POST' })
 // 买方确认收货：delivering → completed，写入作者收益。
 export const completeOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/complete', { method: 'POST' })
@@ -164,8 +164,11 @@ export const createDemand = form => data(demandBase, { method: 'POST', body: for
 // 编辑：仅发布者本人、且未托管未接单时后端才放行，否则 400 带原因
 export const updateDemand = (demandId, form) => data(demandPath(demandId), { method: 'PUT', body: form })
 export const closeDemand = demandId => data(demandPath(demandId) + '/close', { method: 'PUT' })
-// 支付宝沙箱入账：发布者托管付款（需服务端查单确认）。接单侧押金付款不在本端提供。
-export const payEscrow = demandId => data(demandPath(demandId) + '/pay/escrow', { method: 'POST' })
+// 备用通路：开发直通「点一下完成托管」（与 APP 同端点同开关，prod 护栏下后端 400 拒绝）
+export const devPassEscrow = demandId => data(demandPath(demandId) + '/pay/escrow/dev-pass', { method: 'POST' })
+// 支付宝沙箱入账（次入口，沙箱不可用时仅提示）：发布者托管付款（需服务端查单确认）。接单侧押金付款不在本端提供。
+// refresh=true 让服务端换新商户单号重出收款码，用于旧码失效后手动/自动换码。
+export const payEscrow = (demandId, refresh = false) => data(demandPath(demandId) + `/pay/escrow${refresh ? '?refresh=true' : ''}`, { method: 'POST' })
 export const confirmEscrow = demandId => data(demandPath(demandId) + '/pay/escrow/confirm', { method: 'POST' })
 // 验收轮次（出参 amount 为分）：review 通过即放出本轮款项，是逐轮放款的唯一触发点
 export const demandStages = demandId => data(demandPath(demandId) + '/stages')

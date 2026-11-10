@@ -5,7 +5,13 @@
     <template v-else>
       <div class="page-head">
         <h2 class="page-title">{{ isEdit ? '编辑任务' : '发布任务' }}</h2>
-        <p class="page-note">{{ isEdit ? '任务已被接单或已完成托管付款后不可编辑，只能关闭后重新发布。总集数必填，最后一轮验收自动生成并验收到总集数，金额自动取预算余额。' : '发布后需要用支付宝沙箱扫码把预算全额付入平台第三方托管账户，托管完成前任务不会出现在广场、也不可被接单。总集数必填，最后一轮验收自动生成。' }}</p>
+        <p class="page-note">
+          <template v-if="isEdit">任务已被接单或已完成托管付款后不可编辑，只能关闭后重新发布。总集数必填，最后一轮验收自动生成并验收到总集数，金额自动取预算余额。</template>
+          <template v-else>
+            <span>发布后需完成托管付款（预算全额进入平台第三方托管账户），托管完成前任务不会出现在广场、也不可被接单。</span>
+            <span>总集数必填；最后一轮验收自动生成，验收到总集数、金额自动取预算余额。</span>
+          </template>
+        </p>
       </div>
 
       <form class="pub-form" @submit.prevent="submit">
@@ -38,8 +44,8 @@
             <button class="btn ghost small" type="button" @click="form.stages.splice(index, 1)">删除</button>
           </div>
           <div v-if="Number(form.totalEpisodes) > 0" class="last-stage">
-            <p class="lock-note">🔒 最后一轮自动生成（集数与金额不可改）：验收到第 {{ form.totalEpisodes }} 集（=总集数） · 金额 {{ money(lastStageAmountFen) }}（=预算 − 已填写轮次之和）</p>
-            <label class="field tiny">最后一轮时限（小时）<input v-model.number="form.lastDurationHours" type="number" min="1" placeholder="72"></label>
+            <p class="lock-note">最后一轮自动生成（集数与金额不可改）：验收到第 {{ form.totalEpisodes }} 集（=总集数） · 金额 {{ money(lastStageAmountFen) }}（=预算 − 已填写轮次之和）</p>
+            <label class="field tiny">验收时限（小时）<input v-model.number="form.lastDurationHours" type="number" min="1" placeholder="72"></label>
           </div>
           <p v-else class="block-note">填写总集数后，这里会直接出现最后一轮验收。</p>
         </div>
@@ -134,7 +140,7 @@ function buildStages() {
     const amountFen = Math.round((Number(stage.amountYuan) || 0) * 100)
     const hours = Number(stage.durationHours || 0)
     if (episodeTo <= prevEpisode) { ElMessage.warning(`第${i + 1}轮集数必须大于上一轮`); return null }
-    if (episodeTo >= totalEpisodes) { ElMessage.warning(`第${i + 1}轮集数必须小于总集数（最后一轮固定验收到总集数）`); return null }
+    if (episodeTo >= totalEpisodes) { ElMessage.warning(`第${i + 1}轮集数必须小于总集数（最后一轮验收固定验收到总集数）`); return null }
     if (amountFen <= 0) { ElMessage.warning(`第${i + 1}轮金额必须大于0`); return null }
     if (hours <= 0) { ElMessage.warning(`第${i + 1}轮验收时限（小时）必须大于0`); return null }
     prevEpisode = episodeTo
@@ -178,7 +184,7 @@ async function submit() {
     }
     const created = await api.value.createDemand(body)
     ElMessage.success('任务已发布，请完成托管付款')
-    router.push(created?.demandId ? { path: `/demand/${created.demandId}`, query: { pay: 'escrow' } } : '/demand/published')
+    router.push(created?.demandId ? `/demand/${created.demandId}` : '/demand/published')
   } catch (failure) { await handleError(failure) } finally { submitting.value = false }
 }
 onMounted(loadOrigin)
@@ -188,6 +194,8 @@ onMounted(loadOrigin)
 .page-head { margin-bottom: 14px }
 .page-title { margin: 0 0 6px; font-size: 18px }
 .page-note { margin: 0; padding: 9px 12px; border-radius: 6px; background: #f5f7fa; color: #909399; font-size: 12.5px; line-height: 1.6 }
+.page-note span { display: block }
+.page-note span + span { margin-top: 3px }
 .pub-form { display: flex; flex-direction: column; gap: 14px }
 .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: #606266 }

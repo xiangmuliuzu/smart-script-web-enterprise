@@ -12,7 +12,7 @@
             <span v-for="tag in tagList" :key="tag" class="chip-lite">{{ tag }}</span>
           </div>
         </div>
-        <div class="dd-money"><b>{{ money(demand.budget) }}</b><span>任务预算 · 托管{{ escrowStatusLabel(demand.escrowStatus) }}</span></div>
+        <div class="dd-money"><b>{{ money(demand.budget) }}</b><span>任务预算 · {{ escrowStatusLabel(demand.escrowStatus) }}</span></div>
       </header>
 
       <dl class="dd-info">
@@ -40,7 +40,8 @@
       </section>
 
       <section class="dd-actions">
-        <button v-if="canPayEscrow" class="btn" :disabled="busy" @click="openEscrowPay">支付托管 {{ money(demand.budget) }}</button>
+        <button v-if="canPayEscrow" class="btn" :disabled="busy" @click="openEscrowPay()">{{ busy ? '获取收款码…' : `支付宝扫码付托管款 ${money(demand.budget)}` }}</button>
+        <button v-if="canPayEscrow" class="btn ghost" :disabled="busy" @click="doEscrowPass">开发环境一键直通托管</button>
         <button v-if="canEdit" class="btn light" :disabled="busy" @click="router.push(`/demand/${demandId}/edit`)">编辑任务</button>
         <button v-if="demand.status === 'open'" class="btn ghost danger" :disabled="busy" @click="doClose">关闭征集</button>
         <button v-if="demand.acceptedCreatorId" class="btn ghost" :disabled="busy" @click="openChat(demand.acceptedCreatorId)">联系接单人</button>
@@ -53,18 +54,19 @@
       <DemandStagePanel ref="panel" :demand="demand" @changed="load" />
     </template>
 
-    <PortalLayer v-model="payVisible" title="支付托管款" modal>
+    <PortalLayer v-model="payVisible" title="支付宝沙箱扫码付托管款" modal>
       <div class="pay-body">
         <p class="dd-cost">金额 {{ money(payAmount) }}（预算全额，沙箱收款不产生真实资金）</p>
         <img v-if="payQr" :src="payQr" alt="支付宝沙箱托管收款二维码" width="220" height="220">
-        <p v-if="payMessage" class="dd-cost pay-message">{{ payMessage }}</p>
+        <button class="btn pay-refresh" :disabled="payRefreshing" @click="refreshEscrowQr">{{ payRefreshing ? '生成新码中…' : '刷新二维码' }}</button>
+        <p class="dd-cost pay-message">{{ payMessage || '等待支付结果…扫码完成后会自动确认' }}</p>
         <button class="btn" :disabled="payChecking" @click="confirmEscrowPay">{{ payChecking ? '查询中…' : '我已完成支付' }}</button>
       </div>
     </PortalLayer>
   </div>
 </template>
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import QRCode from 'qrcode'
@@ -86,6 +88,7 @@ const payVisible = ref(false)
 const payQr = ref('')
 const payMessage = ref('')
 const payChecking = ref(false)
+const payRefreshing = ref(false)
 const payAmount = ref(0)
 const isStaged = computed(() => Number(demand.value?.totalEpisodes) > 0)
 const tagList = computed(() => String(demand.value?.tags || '').split(/[,，]/).map(tag => tag.trim()).filter(Boolean))
@@ -111,10 +114,33 @@ async function openChat(targetUserId) {
     openTrade('session')
   } catch (failure) { await handleError(failure) } finally { busy.value = false }
 }
-async function openEscrowPay() {
+// 备用通路：一键直通完成托管（沙箱未配置或被护栏拒绝时使用）
+async function doEscrowPass() {
+  if (busy.value) return
   busy.value = true
   try {
-    const result = await api.value.payEscrow(demandId.value)
+    await api.value.devPassEscrow(demandId.value)
+    ElMessage.success('托管已到账，任务已对外曝光')
+    await load()
+  } catch (failure) {
+    if (failure?.code === 400) ElMessage.warning(failure.message || '开发直通不可用，请改用支付宝沙箱扫码付款')
+    else await handleError(failure)
+  } finally { busy.value = false }
+}
+// 主路径：支付宝沙箱扫码付托管款，收款码打开后每 3 秒静默查单（与 APP 弹窗同口径）。
+// refresh=true 时服务端换新商户单号重出码，用于收款码失效后手动/自动换码。
+async function openEscrowPay({ refresh = false } = {}) {
+  busy.value = true
+  try {
+    const result = await api.value.payEscrow(demandId.value, refresh)
+    if (result?.paid) {
+      // 旧收款码其实已被扫付，服务端就地结算，这里直接按成功收尾
+      stopPayPolling()
+      payVisible.value = false
+      ElMessage.success('托管款此前已支付成功，任务已对外曝光')
+      await load()
+      return
+    }
     if (!result?.sandbox || !result.qrCode) throw new Error('获取沙箱支付二维码失败')
     payQr.value = await QRCode.toDataURL(result.qrCode, { width: 220, margin: 2 })
     payAmount.value = Number(result.amount) || Number(demand.value.budget) || 0
@@ -122,18 +148,46 @@ async function openEscrowPay() {
     payVisible.value = true
   } catch (failure) { await handleError(failure) } finally { busy.value = false }
 }
-async function confirmEscrowPay() {
+const QR_REFRESH_INTERVAL = 5 * 60 * 1000
+async function refreshEscrowQr() {
+  if (payRefreshing.value) return
+  payRefreshing.value = true
+  payMessage.value = '正在生成新的收款码…'
+  try { await openEscrowPay({ refresh: true }) } finally { payRefreshing.value = false }
+}
+let payTimer = null
+let payRotateTimer = null
+function stopPayPolling() { if (payTimer) { clearInterval(payTimer); payTimer = null } }
+watch(payVisible, visible => {
+  stopPayPolling()
+  if (payRotateTimer) { clearInterval(payRotateTimer); payRotateTimer = null }
+  if (visible) {
+    payTimer = setInterval(() => { confirmEscrowPay({ silent: true }) }, 3000)
+    // 沙箱收款码有有效期，弹窗停留超过 5 分钟自动换一张新码（与 APP 同口径）
+    payRotateTimer = setInterval(() => { refreshEscrowQr() }, QR_REFRESH_INTERVAL)
+  }
+})
+onUnmounted(() => { stopPayPolling(); if (payRotateTimer) clearInterval(payRotateTimer) })
+async function confirmEscrowPay({ silent = false } = {}) {
   if (payChecking.value) return
-  payChecking.value = true
+  if (!silent) { payChecking.value = true; payMessage.value = '' }
   try {
     const result = await api.value.confirmEscrow(demandId.value)
     if (result?.paid) {
+      stopPayPolling()
       payVisible.value = false
       ElMessage.success('托管已到账，任务已对外曝光')
       await load()
-    } else payMessage.value = result?.reason || '尚未查询到支付成功，请完成扫码支付后重试'
-  } catch (failure) { payMessage.value = failure.message || '查询失败，请稍后重试' }
-  finally { payChecking.value = false }
+    } else if (result?.closed) {
+      // 支付宝侧旧单已关闭，当前码再怎么扫也不会到账，自动换一张新码
+      await refreshEscrowQr()
+    } else if (result?.reason) {
+      // 任务已被关闭等终态，继续轮询没有意义
+      stopPayPolling()
+      payMessage.value = result.reason
+    } else if (!silent) payMessage.value = '尚未查询到支付成功，请完成扫码支付后重试'
+  } catch (failure) { if (!silent) payMessage.value = failure.message || '查询失败，请稍后重试' }
+  finally { if (!silent) payChecking.value = false }
 }
 async function doClose() {
   try {
@@ -145,11 +199,7 @@ async function doClose() {
   try { await api.value.closeDemand(demandId.value); ElMessage.success('已关闭'); await load() }
   catch (failure) { await handleError(failure) } finally { busy.value = false }
 }
-onMounted(async () => {
-  await load()
-  // 从「我发布的」点「支付托管」进来时直接拉起沙箱扫码面板
-  if (route.query.pay === 'escrow' && canPayEscrow.value) await openEscrowPay()
-})
+onMounted(load)
 </script>
 <style scoped>
 .demand-detail { padding: 4px 0 24px; max-width: 900px }
@@ -193,5 +243,6 @@ onMounted(async () => {
 .dd-cost { margin: 0; font-size: 13px; color: #606266 }
 .pay-body { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center }
 .pay-message { color: #e6a23c }
+.pay-refresh { padding: 4px 16px; font-size: 12px }
 .btn.danger { color: #f56c6c; border-color: #fbc4c4 }
 </style>

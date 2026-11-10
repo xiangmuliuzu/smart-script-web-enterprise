@@ -23,7 +23,7 @@
     <DemandCard v-for="item in list" :key="item.demandId" :demand="item" mode="published" @open="goDetail">
       <button class="btn ghost small" @click.stop="goDetail(item.demandId)">管理</button>
       <button v-if="canEdit(item)" class="btn light small" @click.stop="goEdit(item.demandId)">编辑</button>
-      <button v-if="canPayEscrow(item)" class="btn small" @click.stop="goPayEscrow(item)">支付托管 {{ money(item.budget) }}</button>
+      <button v-if="canPayEscrow(item)" class="btn small" @click.stop="goPayEscrow(item)">去付托管 {{ money(item.budget) }}</button>
       <button v-if="item.status === 'open'" class="btn ghost small danger" @click.stop="closeDemand(item)">关闭</button>
     </DemandCard>
     <div v-if="total > PAGE_SIZE" class="pager">
@@ -45,7 +45,8 @@ import { money, demandStatusOptions } from '../../utils/demand.js'
 const { api, handleError } = usePortal()
 const router = useRouter()
 const route = useRoute()
-const PAGE_SIZE = 10
+// 分页口径与 APP 及 API 默认值一致
+const PAGE_SIZE = 20
 const list = ref([])
 const total = ref(0)
 const pageNum = ref(1)
@@ -58,8 +59,8 @@ const canEdit = item => item.status === 'open' && !['escrowed', 'released'].incl
 const canPayEscrow = item => item.status === 'open' && item.escrowStatus === 'pending_payment'
 function goDetail(id) { router.push(`/demand/${id}`) }
 function goEdit(id) { router.push(`/demand/${id}/edit`) }
-// 托管支付只在详情页做（沙箱二维码 + 到账确认都挂在那里），列表只负责带参数跳过去
-function goPayEscrow(item) { router.push({ path: `/demand/${item.demandId}`, query: { pay: 'escrow' } }) }
+// 托管付款只在详情页做（沙箱扫码为主、一键直通为备），列表只负责跳过去
+function goPayEscrow(item) { router.push(`/demand/${item.demandId}`) }
 async function load() {
   pending.value = true; error.value = ''
   try {

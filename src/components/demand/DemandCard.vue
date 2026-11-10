@@ -23,7 +23,8 @@
     <p v-if="mode === 'published' && (demand.acceptedCreatorName || demand.acceptedCreatorId)" class="dc-meta">
       接单人：{{ demand.acceptedCreatorName || ('用户#' + demand.acceptedCreatorId) }}<template v-if="demand.acceptedAt"> · {{ timeText(demand.acceptedAt) }} 接单</template>
     </p>
-    <p v-if="mode === 'published' && demand.dueAt" class="dc-meta">
+    <!-- 只有进行中的单才该有轮次倒计时：已完成/已关闭/已失败仍显示「剩余 N 天」会被读成还没结清 -->
+    <p v-if="mode === 'published' && demand.status === 'in_progress' && demand.dueAt" class="dc-meta">
       当前轮截止：{{ timeText(demand.dueAt) }}
       <span v-if="roundCountdown.overdue" class="dc-danger">已逾期</span>
       <span v-else class="dc-count" :class="{ 'dc-urgent': roundCountdown.urgent }">{{ roundCountdown.text }}</span>

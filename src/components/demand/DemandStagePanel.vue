@@ -1,7 +1,7 @@
 <template>
   <section class="stage-panel">
     <LoadState :pending="pending" :error="error" :retry="reload" loading-text="正在加载验收轮次…" />
-    <div v-if="!pending && !error && !stages.length" class="panel-note">该任务未配置逐轮验收：接单后按整单时限（{{ demand.durationHours || '-' }} 小时）交付，验收通过即一次性放款。</div>
+    <div v-if="!pending && !error && !stages.length" class="panel-note">该任务未配置逐轮验收：接单后按整单时限（{{ formatHours(demand.durationHours) }}）交付，验收通过即一次性放款。</div>
     <template v-else>
       <p v-if="activeRound" class="round-banner" :data-urgent="countdown(activeRound.dueAt).urgent">第 {{ activeRound.stageOrder }} 轮进行中 · {{ countdown(activeRound.dueAt).text }}</p>
       <p v-else-if="reviewable" class="round-banner wait">第 {{ reviewable.stageOrder }} 轮交付已提交，等待你验收（通过后即放出该轮 {{ money(reviewable.amount) }}）</p>
