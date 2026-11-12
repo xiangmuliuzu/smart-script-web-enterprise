@@ -15,12 +15,17 @@
           <span class="sc-status">{{ stageStatusLabel(stage) }}</span>
         </div>
         <p class="sc-meta">时限 {{ durationText(stage) }}<template v-if="extendedHoursOf(stage) > 0"> · 已延时 {{ formatHours(extendedHoursOf(stage)) }}</template> · <span :class="dueClass(stage)">截止 {{ timeText(stage.dueAt) }}</span><template v-if="stage.startedAt"> · 开始于 {{ timeText(stage.startedAt) }}</template></p>
-        <template v-if="stage.workId || stage.deliverableDesc">
-          <p class="sc-meta">交付作品：《{{ stage.workTitle || ('作品#' + stage.workId) }}》<template v-if="stage.submittedAt"> · 提交于 {{ timeText(stage.submittedAt) }}</template></p>
+        <!-- 分镜类任务可以只交文件与说明（不关联作品），所以判断条件带 deliverableUrl -->
+        <template v-if="stage.workId || stage.deliverableDesc || stage.deliverableUrl">
+          <p class="sc-meta">
+            <template v-if="stage.workId">交付作品：《{{ stage.workTitle || ('作品#' + stage.workId) }}》</template>
+            <template v-else>交付分镜（未关联作品）</template>
+            <template v-if="stage.submittedAt"> · 提交于 {{ timeText(stage.submittedAt) }}</template>
+          </p>
           <!-- 验收前得能读到创作者交的剧本正文，否则只能凭一句交付说明拍板 -->
-          <button v-if="stage.workId" class="btn light small wv-open" type="button" @click="openWork(stage)">查看交付内容</button>
+          <button class="btn light small wv-open" type="button" @click="openWork(stage)">查看交付内容</button>
           <p v-if="stage.deliverableDesc" class="sc-desc">{{ stage.deliverableDesc }}</p>
-          <a v-if="stage.deliverableUrl" class="sc-link" :href="stage.deliverableUrl" target="_blank" rel="noopener">交付物链接 ↗</a>
+          <a v-if="stage.deliverableUrl" class="sc-link" :href="mediaUrl(stage.deliverableUrl)" target="_blank" rel="noopener">交付文件链接 ↗</a>
         </template>
         <p v-if="stage.aiScore != null" class="sc-meta">AI 审核 {{ stage.aiScore }} 分：{{ aiBrief(stage.aiResult) }}（{{ timeText(stage.aiReviewedAt) }}）</p>
         <p v-if="stage.status === 'ai_reviewing'" class="sc-meta sc-warn">创作者已提交，AI 正在审核，本轮计时已暂停，结果出来后进入你的验收。</p>
@@ -77,13 +82,14 @@
       <div class="work-view">
         <LoadState :pending="workPending" :error="workError" :retry="() => loadWork(workStage)" loading-text="正在加载交付内容…" />
         <template v-if="!workPending && !workError && work">
-          <h4 class="wv-title">《{{ work.title || '未命名作品' }}》</h4>
-          <p class="sc-meta">{{ work.authorName ? '作者 ' + work.authorName + ' · ' : '' }}全 {{ work.episodeCount || 0 }} 集 · {{ work.wordCount || 0 }} 字 · 本轮验收到第 {{ work.episodeTo || work.chapters.length }} 集</p>
+          <h4 class="wv-title">{{ work.title ? '《' + work.title + '》' : '本轮交付（未关联作品）' }}</h4>
+          <p v-if="work.chapters.length" class="sc-meta">{{ work.authorName ? '作者 ' + work.authorName + ' · ' : '' }}全 {{ work.episodeCount || 0 }} 集 · {{ work.wordCount || 0 }} 字 · 本轮验收到第 {{ work.episodeTo || work.chapters.length }} 集</p>
           <p v-if="work.summary" class="wv-summary">{{ work.summary }}</p>
           <p v-if="work.deliverableDesc" class="sc-desc">交付说明：{{ work.deliverableDesc }}</p>
-          <a v-if="work.deliverableUrl" class="sc-link" :href="work.deliverableUrl" target="_blank" rel="noopener">交付物链接 ↗</a>
-          <p class="wv-scope">当前可见 {{ work.readableCount }} 集正文{{ work.episodeTo ? '' : '（该轮未限定集数，全本可见）' }}。未交付集数只列出标题，读不到内容。</p>
-          <ol class="wv-chapters">
+          <a v-if="work.deliverableUrl" class="sc-link" :href="mediaUrl(work.deliverableUrl)" target="_blank" rel="noopener">交付文件链接 ↗</a>
+          <p v-if="!work.chapters.length" class="panel-note">本轮未关联剧本作品，交付内容以上面的文件链接与交付说明为准；分镜类任务不做 AI 剧本审核，提交后直接进入你的验收。</p>
+          <p v-else class="wv-scope">当前可见 {{ work.readableCount }} 集正文{{ work.episodeTo ? '' : '（该轮未限定集数，全本可见）' }}。未交付集数只列出标题，读不到内容。</p>
+          <ol v-if="work.chapters.length" class="wv-chapters">
             <li v-for="chapter in work.chapters" :key="chapter.chapterId" class="wv-chapter">
               <div class="wv-chapter-head">
                 <b>第 {{ chapter.chapterNo }} 集 · {{ chapter.chapterTitle || ('章节#' + chapter.chapterId) }}</b>
@@ -96,7 +102,6 @@
                 <p v-if="!chapterParagraphs(chapter).length" class="sc-meta">该集暂无正文内容。</p>
               </div>
             </li>
-            <li v-if="!work.chapters.length" class="sc-meta">该作品暂无章节目录。</li>
           </ol>
         </template>
       </div>
@@ -110,6 +115,7 @@ import { usePortal } from '../../utils/portal.js'
 import LoadState from '../LoadState.vue'
 import PortalLayer from '../PortalLayer.vue'
 import { money, timeText, countdown, durationText, stageStatusLabel, stageTone, isActiveStage, extendTypeLabel, extendStatusLabel, extendTone, aiBrief, dueTone, formatHours } from '../../utils/demand.js'
+import { mediaUrl } from '../../utils/enterprise.js'
 const props = defineProps({ demand: { type: Object, required: true } })
 // 验收/延期动作会连带改变整单状态（completed / failed），父页需要重拉任务详情
 const emit = defineEmits(['changed'])
@@ -213,7 +219,6 @@ async function doSelfExtend() {
 const chapterParagraphs = chapter => String(chapter?.content || '').split(/\n+/).map(line => line.trim()).filter(Boolean)
 function toggleChapter(chapter) { opened[chapter.chapterId] = !opened[chapter.chapterId] }
 async function loadWork(stage) {
-  if (!stage || !stage.workId) { workError.value = '本轮尚未交付作品'; return }
   workPending.value = true; workError.value = ''
   try {
     const result = await api.value.deliverableWork(props.demand.demandId, stage.stageId)

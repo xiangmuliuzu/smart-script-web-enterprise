@@ -8,6 +8,7 @@
           <h2>{{ demand.title }}</h2>
           <div class="dd-tags">
             <span class="dd-status" :data-tone="statusTone">{{ demandStatusLabel(demand.status) }}</span>
+            <span class="chip-lite chip-type" :data-type="taskTypeValue">{{ taskTypeLabel(demand.taskType) }}</span>
             <span class="chip-lite">{{ genreLabel(demand.genreId) }}</span>
             <span v-for="tag in tagList" :key="tag" class="chip-lite">{{ tag }}</span>
           </div>
@@ -17,10 +18,12 @@
 
       <dl class="dd-info">
         <div><dt>任务编号</dt><dd>{{ demand.demandNo }}</dd></div>
+        <div><dt>任务类型</dt><dd>{{ taskTypeLabel(demand.taskType) }}</dd></div>
         <div><dt>接单截止</dt><dd>{{ dateText(demand.deadline) }}</dd></div>
-        <div><dt>总集数</dt><dd>{{ isStaged ? demand.totalEpisodes + ' 集 · 逐轮验收' : '未设定 · 整单时限 ' + formatHours(demand.durationHours) }}</dd></div>
+        <div><dt>总集数</dt><dd>{{ isStaged ? demand.totalEpisodes + ' 集 · ' + (taskTypeValue === 'storyboard' ? '按源剧本逐轮出分镜' : '逐轮验收') : '未设定 · 整单时限 ' + formatHours(demand.durationHours) }}</dd></div>
         <div><dt>托管金额</dt><dd>{{ money(demand.escrowAmount) }} · {{ escrowStatusLabel(demand.escrowStatus) }}</dd></div>
         <div><dt>创作者押金</dt><dd>{{ depositStatusLabel(demand.depositStatus) }}<template v-if="Number(demand.depositAmount) > 0">（{{ money(demand.depositAmount) }}）</template></dd></div>
+        <div class="dd-span-2"><dt>交付要求</dt><dd>{{ taskTypeDeliverHint(demand.taskType) }}</dd></div>
         <div v-if="demand.acceptedCreatorId || demand.acceptedCreatorName" class="dd-span-2">
           <dt>接单人</dt>
           <dd>{{ demand.acceptedCreatorName || ('用户#' + demand.acceptedCreatorId) }}<template v-if="demand.acceptedAt"> · {{ timeText(demand.acceptedAt) }} 付押金接单</template></dd>
@@ -32,6 +35,15 @@
       <section class="dd-block">
         <h3>需求描述</h3>
         <p class="dd-requirement">{{ demand.requirement || '未填写需求描述' }}</p>
+      </section>
+      <!-- 分镜类任务的源剧本：创作者接单前要靠它评估工作量，发布者在详情里复核自己关联的内容 -->
+      <section v-if="taskTypeValue === 'storyboard'" class="dd-block">
+        <h3>源剧本</h3>
+        <p class="dd-requirement">
+          <template v-if="demand.sourceWorkTitle">关联作品《{{ demand.sourceWorkTitle }}》</template>
+          <template v-if="demand.sourceScriptUrl"><span :class="{ 'src-split': demand.sourceWorkTitle }">剧本文件</span><a :href="mediaUrl(demand.sourceScriptUrl)" target="_blank" rel="noopener">{{ demand.sourceScriptName || '查看下载' }}</a></template>
+          <template v-if="!demand.sourceWorkTitle && !demand.sourceScriptUrl"><span class="dd-warn">源剧本已失效，请编辑任务重新关联</span></template>
+        </p>
       </section>
       <!-- 联系方式是自己填的，空值也要占一行显示「未填写」，否则发布者会误以为该字段不存在 -->
       <section class="dd-block">
@@ -74,7 +86,8 @@ import { usePortal } from '../../utils/portal.js'
 import LoadState from '../../components/LoadState.vue'
 import PortalLayer from '../../components/PortalLayer.vue'
 import DemandStagePanel from '../../components/demand/DemandStagePanel.vue'
-import { demandStatusLabel, escrowStatusLabel, depositStatusLabel, money, dateText, timeText, genreLabel, formatHours } from '../../utils/demand.js'
+import { demandStatusLabel, escrowStatusLabel, depositStatusLabel, money, dateText, timeText, genreLabel, formatHours, taskTypeLabel, taskTypeDeliverHint } from '../../utils/demand.js'
+import { mediaUrl } from '../../utils/enterprise.js'
 const { api, openTrade, handleError } = usePortal()
 const route = useRoute()
 const router = useRouter()
@@ -91,6 +104,7 @@ const payChecking = ref(false)
 const payRefreshing = ref(false)
 const payAmount = ref(0)
 const isStaged = computed(() => Number(demand.value?.totalEpisodes) > 0)
+const taskTypeValue = computed(() => demand.value?.taskType || 'script')
 const tagList = computed(() => String(demand.value?.tags || '').split(/[,，]/).map(tag => tag.trim()).filter(Boolean))
 const statusTone = computed(() => ({ open: 'warn', in_progress: 'info', selected: 'info', completed: 'ok', closed: 'off', failed: 'danger' }[demand.value?.status] || 'off'))
 // 与后端 updateDemand / payEscrow 的前置条件对齐，避免点了才吃 400
@@ -214,6 +228,11 @@ onMounted(load)
 .dd-status[data-tone="ok"] { background: #f0f9eb; color: #67c23a }
 .dd-status[data-tone="danger"] { background: #fef0f0; color: #f56c6c }
 .chip-lite { padding: 1px 8px; border-radius: 10px; font-size: 11.5px; background: #f5f7fa; color: #909399 }
+.chip-type { background: #ecf5ff; color: #409eff }
+.chip-type[data-type="script_storyboard"] { background: #fdf6ec; color: #e6a23c }
+.chip-type[data-type="storyboard"] { background: #f0f9eb; color: #67c23a }
+.src-split { margin-left: 10px }
+.dd-warn { color: #f56c6c }
 .dd-money { text-align: right }
 .dd-money b { display: block; font-size: 22px; color: #f56c6c }
 .dd-money span { font-size: 12px; color: #909399 }

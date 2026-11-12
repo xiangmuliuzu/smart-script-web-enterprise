@@ -13,6 +13,12 @@
           <option v-for="option in demandStatusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
       </label>
+      <label class="field">任务类型
+        <select v-model="filters.taskType" @change="applyFilters">
+          <option value="">全部类型</option>
+          <option v-for="option in taskTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+      </label>
       <label class="field">搜索<input v-model="filters.keyword" type="search" placeholder="标题或任务编号" @keyup.enter="applyFilters"></label>
       <button class="btn small" type="button" @click="applyFilters">筛选</button>
       <button class="btn ghost small" type="button" @click="resetFilters">清空</button>
@@ -41,7 +47,7 @@ import { usePortal } from '../../utils/portal.js'
 import LoadState from '../../components/LoadState.vue'
 import DemandTabs from '../../components/demand/DemandTabs.vue'
 import DemandCard from '../../components/demand/DemandCard.vue'
-import { money, demandStatusOptions } from '../../utils/demand.js'
+import { money, demandStatusOptions, taskTypeOptions } from '../../utils/demand.js'
 const { api, handleError } = usePortal()
 const router = useRouter()
 const route = useRoute()
@@ -52,7 +58,7 @@ const total = ref(0)
 const pageNum = ref(1)
 const pending = ref(false)
 const error = ref('')
-const filters = reactive({ status: '', keyword: '' })
+const filters = reactive({ status: '', taskType: '', keyword: '' })
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 // 编辑口径与后端 updateDemand 一致：仅征集中、且托管款尚未付出（已付的要关闭重发）
 const canEdit = item => item.status === 'open' && !['escrowed', 'released'].includes(item.escrowStatus)
@@ -67,6 +73,7 @@ async function load() {
     const result = await api.value.listDemands({
       mine: 'published',
       status: filters.status || undefined,
+      taskType: filters.taskType || undefined,
       keyword: filters.keyword?.trim() || undefined,
       pageNum: pageNum.value, pageSize: PAGE_SIZE,
     })
@@ -87,7 +94,7 @@ async function closeDemand(item) {
   } catch (failure) { await handleError(failure) }
 }
 function applyFilters() { pageNum.value = 1; load() }
-function resetFilters() { Object.assign(filters, { status: '', keyword: '' }); applyFilters() }
+function resetFilters() { Object.assign(filters, { status: '', taskType: '', keyword: '' }); applyFilters() }
 function turn(offset) {
   const next = pageNum.value + offset
   if (next < 1 || next > pageCount.value) return

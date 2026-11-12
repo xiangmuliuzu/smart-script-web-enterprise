@@ -51,10 +51,14 @@ const TRADE_JUMP = {
 function tradeJumpOf(item) {
   return item && item.type === 'TRANSACTION' && item.businessId ? TRADE_JUMP[item.businessType] : null
 }
-function jumpTrade(item) {
+async function jumpTrade(item) {
   const jump = tradeJumpOf(item)
   if (!jump) return
   emit('open-trade', jump.demand ? { demand: true, bizId: item.businessId } : { tab: jump.tab, bizId: item.businessId })
+  // 跳转查看即视为已读：与展开阅读同口径标记，避免跳完后未读红点残留
+  if (!item.isRead) {
+    try { await api.value.readMessage(item.messageId); item.isRead = true; emit('read') } catch { /* 标记失败不打断跳转 */ }
+  }
 }
 const pending = ref(false)
 const error = ref('')

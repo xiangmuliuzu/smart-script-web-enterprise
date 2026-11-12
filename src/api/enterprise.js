@@ -14,7 +14,6 @@ export const getInquiry = inquiryId => data('/api/v1/trade/inquiry/' + id(inquir
 export const closeInquiry = inquiryId => data('/api/v1/trade/inquiry/' + id(inquiryId) + '/close', { method: 'PUT' })
 // 询盘沟通会话：inquiryId 是查询参数，不是 body 字段。
 export const openInquiryChat = inquiryId => data('/api/v1/trade/inquiry/chat/sessions?' + qs({ inquiryId }), { method: 'POST' })
-export const createInquiryChatSession = inquiryId => data('/api/v1/users/me/chat/sessions', { method: 'POST', body: { sessionType: 'TRADE', businessType: 'INQUIRY', businessId: inquiryId, inquiryId } })
 
 /* ---------------- 报价与议价 ---------------- */
 // 报价 price 字段按元直传，后端不做单位换算（只有订单 amount 是分）。
@@ -23,8 +22,8 @@ export const counterOffer = body => data('/api/v1/trade/quote/counter-offer', { 
 export const acceptQuote = quoteId => data('/api/v1/trade/quote/' + id(quoteId) + '/accept', { method: 'PUT' })
 
 /* ---------------- 订单（amount 单位为分） ---------------- */
-export async function listOrders({ status, pageNum = 1, pageSize = 10 } = {}) {
-  const result = await data('/api/v1/trade/order/list?' + qs({ role: 'buyer', status, pageNum, pageSize }))
+export async function listOrders({ status, keyword, pageNum = 1, pageSize = 10 } = {}) {
+  const result = await data('/api/v1/trade/order/list?' + qs({ role: 'buyer', status, keyword, pageNum, pageSize }))
   return { total: Number(result?.total || 0), list: asList(result) }
 }
 // 发起支付宝沙箱付款，并由服务端核验支付结果。refresh=true 时换新商户单号重出收款码（旧码失效后用）。
@@ -116,8 +115,8 @@ export const openPlatformChat = () => data('/api/v1/users/me/chat/sessions', { m
 /* ---------------- 创作者门户 Cooperation.vue 复用别名（与用户端同名同义，企业端恒为买方） ---------------- */
 // 交易会话列表：会话列表按 sessionType=TRADE 过滤，返回数组（沿用 listChatSessions）。
 export const listTradeSessions = () => listChatSessions({ sessionType: 'TRADE' })
-// 由询盘创建/获取交易会话，返回新建会话（含 sessionId）。
-export const createTradeChat = inquiryId => createInquiryChatSession(inquiryId)
+// 由询盘创建/获取交易会话，返回新建会话（含 sessionId）。走交易域专用端点，幂等且带询盘校验。
+export const createTradeChat = inquiryId => openInquiryChat(inquiryId)
 // 会话消息列表 / 发送文本 / 最新报价：与 Cooperation.vue 调用名对齐。
 export const listChat = sessionId => listChatMessages(sessionId)
 export const sendChat = (sessionId, content) => sendChatMessage(sessionId, content)
@@ -153,13 +152,24 @@ const demandPath = demandId => demandBase + '/' + id(demandId)
 const stagePath = (demandId, stageId) => `${demandPath(demandId)}/stage/${id(stageId)}`
 // mine=published 查我方发布的全部任务（含进行中/完成，此分支才接受 status 过滤）；
 // 不传 mine 则为公开广场，后端强制 status=open ∧ escrow_status=escrowed 并忽略传入 status。
-export async function listDemands({ status, genreId, keyword, mine, sortBy, order, budgetMin, budgetMax, episodesMin, pageNum = 1, pageSize = 20 } = {}) {
-  const result = await data(demandBase + '/list?' + qs({ status, genreId, keyword, mine, sortBy, order, budgetMin, budgetMax, episodesMin, pageNum, pageSize }))
+export async function listDemands({ status, genreId, taskType, keyword, mine, sortBy, order, budgetMin, budgetMax, episodesMin, pageNum = 1, pageSize = 20 } = {}) {
+  const result = await data(demandBase + '/list?' + qs({ status, genreId, taskType, keyword, mine, sortBy, order, budgetMin, budgetMax, episodesMin, pageNum, pageSize }))
   return { total: Number(result?.total || 0), list: asList(result) }
 }
-// 广场统计：availableCount / prizePoolFen(分) / todayNewCount / genreCounts:[{genreId,count}]，公开可接单口径
+// 广场统计：availableCount / prizePoolFen(分) / todayNewCount / genreCounts / typeCounts，公开可接单口径
 export const demandStats = () => data(demandBase + '/stats')
 export const getDemand = demandId => data(demandPath(demandId))
+// 发布分镜任务时的源剧本候选：本人未删除作品（不排除已上架，源剧本仅作参考）
+export const sourceWorks = async () => asList(await data(demandBase + '/source-works'))
+// 源剧本文件上传：走交易域端点（发布者是买方，无创作者资格时 content/upload 会被拒），
+// 返回 { url(相对路径), fileName }
+export const uploadSourceScript = file => {
+  const form = new FormData()
+  form.append('file', file, file.name || 'script.txt')
+  return data(demandBase + '/upload-script', { method: 'POST', body: form })
+}
+// 查看源剧本：{ work?, chapters?, fileUrl?, fileName? }，任何登录用户可读（接单前评估）
+export const sourceScript = demandId => data(demandPath(demandId) + '/source-script')
 export const createDemand = form => data(demandBase, { method: 'POST', body: form })
 // 编辑：仅发布者本人、且未托管未接单时后端才放行，否则 400 带原因
 export const updateDemand = (demandId, form) => data(demandPath(demandId), { method: 'PUT', body: form })

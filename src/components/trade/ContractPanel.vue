@@ -81,8 +81,8 @@
           </select>
         </div>
         <div class="edit-row">
-          <label class="edit-label">正文条款（第一条~第六条，可自由修改；切换模板将填充该模板默认条款）</label>
-          <textarea v-model="editForm.clausesText" class="edit-textarea" spellcheck="false" placeholder="请输入合同正文条款"></textarea>
+          <label class="edit-label">正文条款（第一条~第六条，可自由修改，支持加粗、字号、对齐等排版；切换模板将填充该模板默认条款）</label>
+          <ContractEditor v-model="editForm.clausesText" :disabled="editSaving" />
         </div>
         <p class="cost edit-note">订单号、双方、金额、许可类型与签名区由平台固定生成，不可编辑；任一方签署后内容锁定。</p>
         <div class="edit-actions">
@@ -100,8 +100,10 @@ import { ElMessage } from 'element-plus'
 import PortalLayer from '../PortalLayer.vue'
 import LoadState from '../LoadState.vue'
 import ContractSignDialog from './ContractSignDialog.vue'
+import ContractEditor from './ContractEditor.vue'
 import { usePortal } from '../../utils/portal.js'
 import { contractMoney, licenseLabel, mediaUrl, avatarUrl, contractHtml, asList } from '../../utils/enterprise.js'
+import { contractDocumentText } from '../../utils/contractDocument.js'
 
 const props = defineProps({ userId: Number })
 const { api, handleError } = usePortal()
@@ -310,7 +312,7 @@ async function doSwitch() {
 async function saveEdit() {
   if (editSaving.value) return
   const text = (editForm.value.clausesText || '').trim()
-  if (!text) { ElMessage.warning('合同正文条款不能为空'); return }
+  if (!contractDocumentText(text).trim()) { ElMessage.warning('合同正文条款不能为空'); return }
   editSaving.value = true
   try {
     await api.value.updateContractContent(editForm.value.contractId, { templateId: editForm.value.templateId, clausesText: text })
@@ -388,8 +390,6 @@ async function focusContract(contractId) {
 .edit-wrap { display: flex; flex-direction: column; gap: 12px; min-height: 200px }
 .edit-row { display: flex; flex-direction: column; gap: 6px }
 .edit-label { font-size: 13px; color: #5c5850 }
-.edit-textarea { width: 100%; min-height: 320px; padding: 10px 12px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 13px; line-height: 1.7; font-family: inherit; resize: vertical; outline: none; box-sizing: border-box }
-.edit-textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(44, 74, 82, .12) }
 .edit-note { font-size: 12px; margin: 0 }
 .edit-actions { display: flex; justify-content: flex-end; gap: 8px }
 .status-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 500 }

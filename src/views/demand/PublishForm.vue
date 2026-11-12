@@ -15,8 +15,38 @@
       </div>
 
       <form class="pub-form" @submit.prevent="submit">
+        <div class="block">
+          <div class="block-head"><b>任务类型 *</b></div>
+          <p class="block-note">决定创作者每轮交付什么、走哪条审核链路；未托管未接单前可改。</p>
+          <div class="type-grid">
+            <label v-for="option in taskTypeOptions" :key="option.value" class="type-card" :class="{ active: form.taskType === option.value }">
+              <input v-model="form.taskType" type="radio" name="task-type" :value="option.value" @change="onTypeChange">
+              <b>{{ option.label }}</b>
+              <span>{{ TASK_TYPE_DELIVER_HINTS[option.value] }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div v-if="form.taskType === 'storyboard'" class="block">
+          <div class="block-head"><b>源剧本 *</b></div>
+          <p class="block-note">选择本人作品或上传剧本文件，至少提供一种；创作者在付押金接单前可查看源剧本以评估工作量。</p>
+          <label class="field span-2">关联本人作品
+            <select v-model="form.sourceWorkId">
+              <option :value="null">不关联作品</option>
+              <option v-for="work in works" :key="work.workId" :value="work.workId">{{ work.title }}{{ work.status === 'on_shelf' ? '（已上架）' : '' }}</option>
+            </select>
+          </label>
+          <div class="file-row">
+            <span class="field-label">上传剧本文件</span>
+            <input ref="fileInput" type="file" accept=".txt,.doc,.docx,.pdf" class="file-input" @change="pickScript">
+            <button class="btn ghost small" type="button" :disabled="uploading" @click="fileInput.click()">{{ uploading ? '上传中…' : (form.sourceScriptUrl ? '重新上传' : '选择文件上传') }}</button>
+            <span v-if="form.sourceScriptName" class="file-name">{{ form.sourceScriptName }}<button class="link-btn" type="button" @click="clearScript">移除</button></span>
+          </div>
+          <p v-if="uploadError" class="file-error">{{ uploadError }}</p>
+        </div>
+
         <div class="form-grid">
-          <label class="field span-2">任务标题 *<input v-model="form.title" maxlength="100" placeholder="例如：24 集都市甜宠短剧编剧招募"></label>
+          <label class="field span-2">任务标题 *<input v-model="form.title" maxlength="100" :placeholder="titlePlaceholder"></label>
           <label class="field">题材 *
             <select v-model.number="form.genreId">
               <option v-for="option in genreOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
@@ -24,18 +54,18 @@
           </label>
           <label class="field">预算金额（元）*<input v-model.number="form.budgetYuan" type="number" min="1" step="0.01" placeholder="5000"></label>
           <label class="field">截止日期 *<input v-model="form.deadline" type="date" :min="today"></label>
-          <label class="field">总集数 *<input v-model.number="form.totalEpisodes" type="number" min="1" placeholder="必填，例如 24"></label>
+          <label class="field">总集数 *<input v-model.number="form.totalEpisodes" type="number" min="1" :placeholder="totalEpisodesPlaceholder"></label>
           <label class="field">标签<input v-model="form.tags" placeholder="短剧,都市,竖屏（逗号分隔）"></label>
           <label class="field">联系方式<input v-model="form.contactInfo" placeholder="手机号/微信，仅对接单者可见"></label>
         </div>
-        <label class="field span-2">需求描述 *<textarea v-model="form.requirement" rows="5" placeholder="题材定位、人物小传要求、交付格式、每集字数与时长…"></textarea></label>
+        <label class="field span-2">需求描述 *<textarea v-model="form.requirement" rows="5" :placeholder="requirementPlaceholder"></textarea></label>
 
         <div class="block">
           <div class="block-head">
             <b>验收轮次</b>
             <button class="btn ghost small" type="button" @click="addStage">+ 添加一轮</button>
           </div>
-          <p class="block-note">中间轮次可选；最后一轮验收会自动生成（验收到总集数，金额 = 预算余额），不添加中间轮次也可直接发布。每轮时限统一按小时填写，展示时自动折算为天。</p>
+          <p class="block-note">{{ stageBlockNote }}</p>
           <div v-for="(stage, index) in form.stages" :key="index" class="stage-row">
             <span class="stage-no">第 {{ index + 1 }} 轮</span>
             <label class="field tiny">验收到第（集）<input v-model.number="stage.episodeTo" type="number" min="1" placeholder="8"></label>
@@ -65,7 +95,7 @@ import { ElMessage } from 'element-plus'
 import { usePortal } from '../../utils/portal.js'
 import LoadState from '../../components/LoadState.vue'
 import DemandTabs from '../../components/demand/DemandTabs.vue'
-import { genreOptions, money } from '../../utils/demand.js'
+import { genreOptions, money, taskTypeOptions, TASK_TYPE_DELIVER_HINTS } from '../../utils/demand.js'
 const { api, handleError } = usePortal()
 const router = useRouter()
 const route = useRoute()
@@ -77,7 +107,63 @@ const submitting = ref(false)
 const today = new Date().toISOString().slice(0, 10)
 const form = reactive({
   title: '', genreId: 1, budgetYuan: null, deadline: '', totalEpisodes: null, tags: '', contactInfo: '', requirement: '',
+  taskType: 'script', sourceWorkId: null, sourceScriptUrl: '', sourceScriptName: '',
   stages: [], lastDurationHours: null,
+})
+/* 源剧本（storyboard 类型）：本人作品列表懒加载 + 文件上传；两种源至少提供一种，后端同口径校验 */
+const works = ref([])
+const worksLoaded = ref(false)
+const fileInput = ref(null)
+const uploading = ref(false)
+const uploadError = ref('')
+async function loadWorks() {
+  if (worksLoaded.value) return
+  try {
+    works.value = await api.value.sourceWorks()
+    worksLoaded.value = true
+  } catch (failure) { await handleError(failure) }
+}
+function onTypeChange() {
+  if (form.taskType === 'storyboard') loadWorks()
+}
+async function pickScript(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  uploading.value = true
+  uploadError.value = ''
+  try {
+    const result = await api.value.uploadSourceScript(file)
+    form.sourceScriptUrl = result?.url || ''
+    form.sourceScriptName = result?.fileName || file.name
+  } catch (failure) {
+    uploadError.value = failure.message || '上传失败，请重试'
+    await handleError(failure)
+  } finally {
+    uploading.value = false
+    event.target.value = ''
+  }
+}
+function clearScript() {
+  form.sourceScriptUrl = ''
+  form.sourceScriptName = ''
+  uploadError.value = ''
+}
+// 三类任务的文案分化：标题示例、需求描述引导、轮次说明均随任务类型变化
+const titlePlaceholder = computed(() => ({
+  script: '例如：24 集都市甜宠短剧编剧招募',
+  script_storyboard: '例如：24 集悬疑短剧 · 剧本+分镜一体招募',
+  storyboard: '例如：既有剧本《迷雾之城》24 集分镜制作'
+}[form.taskType]))
+const requirementPlaceholder = computed(() => ({
+  script: '题材定位、人物小传要求、交付格式、每集字数与时长…',
+  script_storyboard: '剧本要求 + 分镜规格（每集镜头数、分镜表格式、标注粒度、交付格式）…',
+  storyboard: '分镜规格（每集镜头数、分镜表格式、标注粒度、交付格式）、对源剧本的处理要求…'
+}[form.taskType]))
+const stageBlockNote = computed(() => {
+  const base = '中间轮次可选；最后一轮验收会自动生成（验收到总集数，金额 = 预算余额），不添加中间轮次也可直接发布。每轮时限统一按小时填写，展示时自动折算为天。'
+  if (form.taskType === 'storyboard') return `按源剧本集数分轮交付分镜。${base}`
+  if (form.taskType === 'script_storyboard') return `每轮验收同时核对剧本作品与分镜（文件链接或说明随本轮提交）。${base}`
+  return base
 })
 // 历史数据可能按天+小时存储，回填与展示统一折算成小时
 function hoursOf(round) {
@@ -109,7 +195,12 @@ async function loadOrigin() {
       tags: demand.tags || '',
       contactInfo: demand.contactInfo || '',
       requirement: demand.requirement || '',
+      taskType: demand.taskType || 'script',
+      sourceWorkId: demand.sourceWorkId ? Number(demand.sourceWorkId) : null,
+      sourceScriptUrl: demand.sourceScriptUrl || '',
+      sourceScriptName: demand.sourceScriptName || '',
     })
+    if (form.taskType === 'storyboard') loadWorks()
     const rounds = (stages || []).slice().sort((a, b) => a.stageOrder - b.stageOrder)
     if (rounds.length) {
       const last = rounds[rounds.length - 1]
@@ -160,6 +251,9 @@ async function submit() {
   if (!form.budgetYuan || form.budgetYuan <= 0) { ElMessage.warning('请输入有效预算'); return }
   if (!form.deadline) { ElMessage.warning('请选择截止日期'); return }
   if (!form.requirement?.trim()) { ElMessage.warning('请填写需求描述'); return }
+  if (form.taskType === 'storyboard' && !form.sourceWorkId && !form.sourceScriptUrl) {
+    ElMessage.warning('请关联本人作品或上传剧本文件作为源剧本'); return
+  }
   const stages = buildStages()
   if (stages === null) return
   const body = {
@@ -172,7 +266,14 @@ async function submit() {
     contactInfo: form.contactInfo?.trim() || undefined,
     tags: form.tags?.trim() || undefined,
     totalEpisodes: Number(form.totalEpisodes),
+    taskType: form.taskType,
     stages,
+  }
+  // 源剧本仅 storyboard 类型有意义；其余类型后端会忽略并清空残留字段
+  if (form.taskType === 'storyboard') {
+    body.sourceWorkId = form.sourceWorkId || undefined
+    body.sourceScriptUrl = form.sourceScriptUrl || undefined
+    body.sourceScriptName = form.sourceScriptName || undefined
   }
   submitting.value = true
   try {
@@ -213,4 +314,16 @@ onMounted(loadOrigin)
 .last-stage { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding: 9px 12px; border: 1px dashed #b3d8ff; border-radius: 6px; background: #f0f7ff }
 .lock-note { margin: 0; flex: 1; min-width: 240px; font-size: 12px; color: #409eff }
 .form-foot { display: flex; justify-content: flex-end; gap: 8px }
+.type-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px }
+.type-card { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; border: 1px solid #dcdfe6; border-radius: 6px; cursor: pointer; font-size: 12px; color: #909399; line-height: 1.55 }
+.type-card b { font-size: 13.5px; color: #303133 }
+.type-card.active { border-color: #409eff; background: #f0f7ff }
+.type-card.active b { color: #409eff }
+.type-card input { align-self: flex-start; margin: 0 }
+.file-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px }
+.field-label { font-size: 12.5px; color: #606266 }
+.file-input { display: none }
+.file-name { font-size: 12.5px; color: #67c23a }
+.link-btn { border: none; background: none; color: #f56c6c; font-size: 12px; cursor: pointer; margin-left: 6px; padding: 0 }
+.file-error { margin: 6px 0 0; font-size: 12px; color: #f56c6c }
 </style>

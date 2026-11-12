@@ -86,6 +86,20 @@ export const DEMAND_GENRES = { 1: '都市', 2: '古装', 3: '玄幻', 4: '悬疑
 export const genreOptions = Object.entries(DEMAND_GENRES).map(([value, label]) => ({ value: Number(value), label }))
 export const genreLabel = genreId => DEMAND_GENRES[Number(genreId)] || (genreId ? '其他' : '未分类')
 
+/* 任务类型（sys_demand.task_type）：值与后端 TradeDemandService 的 TASK_TYPE_* 常量一致，
+   文案与 APP 端 demand_task_type.dart、管理端 tradeEnum.js 同口径。
+   storyboard 类任务的交付走文件/说明、跳过 AI 剧本审核（后端 deliverStage 分流），
+   下面的交付口径说明必须与该分流规则保持一致。 */
+export const TASK_TYPE_LABELS = { script: '只征集剧本', script_storyboard: '剧本+分镜', storyboard: '提供剧本做分镜' }
+export const taskTypeLabel = t => TASK_TYPE_LABELS[t] || TASK_TYPE_LABELS.script
+export const taskTypeOptions = Object.entries(TASK_TYPE_LABELS).map(([value, label]) => ({ value, label }))
+export const TASK_TYPE_DELIVER_HINTS = {
+  script: '逐轮交付本人未上架的剧本作品，AI 剧本审核通过后进入发布者人工验收',
+  script_storyboard: '逐轮交付剧本作品，分镜以文件链接或交付说明随本轮一并提交，AI 剧本审核通过后进入人工验收',
+  storyboard: '按发布者提供的源剧本产出分镜：交付分镜文件或填写交付说明即可（作品可选），提交后直接进入人工验收'
+}
+export const taskTypeDeliverHint = t => TASK_TYPE_DELIVER_HINTS[t] || TASK_TYPE_DELIVER_HINTS.script
+
 const pad = n => String(n).padStart(2, '0')
 // 后端 JSON 已格式化到秒（yyyy-MM-dd HH:mm:ss），iOS Safari 不能直接 new Date(带 - 的字符串)，统一按本地时间解析
 function toDate(value) {

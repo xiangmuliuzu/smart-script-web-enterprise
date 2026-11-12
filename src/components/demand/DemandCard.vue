@@ -2,6 +2,8 @@
   <article class="demand-card" role="button" tabindex="0" @click="$emit('open', demand.demandId)" @keydown.enter.prevent="$emit('open', demand.demandId)">
     <div class="dc-head">
       <h3 class="dc-title">{{ demand.title }}</h3>
+      <!-- 任务类型是接单决策的第一信息，放在状态之前 -->
+      <span class="dc-type" :data-type="taskTypeValue">{{ taskTypeLabel(demand.taskType) }}</span>
       <span class="dc-status" :data-tone="statusTone">{{ demandStatusLabel(demand.status) }}</span>
     </div>
     <p class="dc-meta">
@@ -11,6 +13,7 @@
     </p>
     <p class="dc-meta">
       {{ genreLabel(demand.genreId) }}
+      <template v-if="taskTypeValue === 'storyboard'"> · 发布者提供源剧本</template>
       <!-- 标签必须带前缀：否则「玄幻 · 11 / 22」会被读成集数进度 -->
       <template v-if="tagList.length"> · 标签 {{ tagList.join(' / ') }}</template>
     </p>
@@ -39,10 +42,11 @@
 </template>
 <script setup>
 import { computed } from 'vue'
-import { demandStatusLabel, escrowStatusLabel, depositStatusLabel, money, dateText, timeText, countdown, genreLabel, formatHours } from '../../utils/demand.js'
+import { demandStatusLabel, escrowStatusLabel, depositStatusLabel, money, dateText, timeText, countdown, genreLabel, formatHours, taskTypeLabel } from '../../utils/demand.js'
 // open 统一回传 demandId，页面直接用它跳详情
 const props = defineProps({ demand: { type: Object, required: true }, mode: { type: String, default: 'square' } })
 defineEmits(['open'])
+const taskTypeValue = computed(() => props.demand.taskType || 'script')
 const tagList = computed(() => String(props.demand.tags || '').split(/[,，]/).map(t => t.trim()).filter(Boolean).slice(0, 4))
 const brief = computed(() => {
   const text = String(props.demand.requirement || '').replace(/\s+/g, ' ').trim()
@@ -62,6 +66,9 @@ const roundCountdown = computed(() => countdown(props.demand.dueAt))
 .dc-head { display: flex; align-items: baseline; gap: 12px }
 .dc-title { margin: 0; min-width: 0; font-family: var(--serif); font-size: 16px; font-weight: 600; letter-spacing: .01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .dc-status { flex: none; padding: 1px 7px; border: 1px solid currentColor; border-radius: var(--r); font-size: 11.5px; font-weight: 500; color: var(--muted); background: none }
+.dc-type { flex: none; padding: 1px 7px; border-radius: var(--r); font-size: 11.5px; font-weight: 500; white-space: nowrap; color: var(--brand); background: var(--brandsoft) }
+.dc-type[data-type="script_storyboard"] { color: var(--gold); background: var(--goldsoft) }
+.dc-type[data-type="storyboard"] { color: #4a7c59; background: #e7f1e9 }
 .dc-status[data-tone="warn"] { color: var(--gold) }
 .dc-status[data-tone="info"] { color: var(--brand) }
 .dc-status[data-tone="ok"] { color: #4a7c59 }
