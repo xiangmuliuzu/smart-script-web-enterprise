@@ -1,5 +1,9 @@
 <template>
   <section class="screen" id="screen-login" data-active="true">
+    <button type="button" class="portal-switch" @click="goOtherPortal">
+      <span>切换至{{ portalSwitch.label }}</span>
+      <el-icon><Right /></el-icon>
+    </button>
     <div class="login">
       <div class="login-visual">
         <button class="brand" type="button" @click="ElMessage.info('剧云策 · 个人版权采购中心')"><strong>剧云策</strong><span>个人版权采购中心</span></button>
@@ -54,11 +58,17 @@ import { computed, reactive, ref, onMounted } from 'vue'
 import enterpriseIllustration from '../assets/images/login-enterprise-v2.webp'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Right } from '@element-plus/icons-vue'
 import { assertUser, getCaptcha, login, safeRedirect } from '../auth.js'
-import { portal } from '../portal.js'
+import { portal, portalSwitch, portalSwitchHref } from '../portal.js'
 import AccountPanel from '../components/AccountPanel.vue'
 const route = useRoute()
 const router = useRouter()
+
+// 两端登录态分开存储：点击后直接进入另一端的登录页。
+function goOtherPortal() {
+  window.location.assign(portalSwitchHref())
+}
 const formRef = ref(null)
 // 登录 / 注册 / 找回密码在同一页切换，不再用弹窗。
 const mode = ref('login')
@@ -195,4 +205,33 @@ onMounted(refreshCaptcha)
 .captcha-img img { display:block; width:100%; height:100%; object-fit:contain; }
 .form-options { display:flex; align-items:center; justify-content:space-between; margin:10px 0 4px; }
 .error-message { margin-top:12px; }
+/* 右上角两端切换：轻量胶囊按钮，和登录页的米色底/墨黑文字同一套语言。 */
+.portal-switch {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid #d8d0c4;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #292723;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.portal-switch .el-icon { font-size: 13px; }
+.portal-switch:hover { background: #fff; border-color: #b9ae9d; }
+.portal-switch:active { transform: scale(0.97); }
+.portal-switch:focus-visible { outline: 2px solid #1f2329; outline-offset: 2px; }
+@media (max-width: 900px) {
+  .portal-switch { top: 14px; right: 16px; height: 32px; padding: 0 12px; font-size: 12.5px; }
+}
 </style>
