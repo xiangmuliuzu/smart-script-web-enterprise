@@ -170,6 +170,7 @@ import ContractPanel from '../../components/trade/ContractPanel.vue'
 import ContractSignDialog from '../../components/trade/ContractSignDialog.vue'
 import TradeTemplatePanel from '../../components/trade/TradeTemplatePanel.vue'
 import { usePortal } from '../../utils/portal.js'
+import { isRealtimeConnected, onRealtime } from '../../utils/realtime-socket.js'
 import { avatarUrl, contractHtml, contractMoney, mediaUrl, dateText, asList } from '../../utils/enterprise.js'
 
 const props = defineProps({ modelValue: Boolean, initialTab: String, focusTab: String, focusId: [String, Number] })
@@ -411,7 +412,9 @@ function scrollChatBottom() {
 }
 function startChatPoll() {
   stopChatPoll()
-  chatPollTimer = setInterval(() => { if (chatSessionId.value && tab.value === 'session') pollNewMessages() }, 5000)
+  // 长连接在线时增量轮询只作兜底（60s）；连接不可用时退回 5s。
+  const delay = isRealtimeConnected() ? 60000 : 5000
+  chatPollTimer = setInterval(() => { if (chatSessionId.value && tab.value === 'session') pollNewMessages() }, delay)
 }
 function stopChatPoll() {
   if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null }
@@ -649,8 +652,20 @@ watch(tab, v => {
 })
 watch(() => props.initialTab, v => { if (v) tab.value = v })
 watch(() => props.modelValue, v => { if (v) tab.value = props.initialTab || 'inquiry' })
-onMounted(() => { loadInquiries() })
-onUnmounted(() => { stopChatPoll(); stopPaymentPolling() })
+let realtimeOff = []
+onMounted(() => {
+  loadInquiries()
+  realtimeOff = [
+    onRealtime('connected', startChatPoll),
+    onRealtime('disconnected', startChatPoll),
+    onRealtime('chat', frame => {
+      if (tab.value !== 'session' || !chatSessionId.value) return
+      if (String(frame?.sessionId || '') === String(chatSessionId.value)) pollNewMessages()
+      else loadTradeSessions()
+    })
+  ]
+})
+onUnmounted(() => { realtimeOff.forEach(off => off()); realtimeOff = []; stopChatPoll(); stopPaymentPolling() })
 
 // ── 通知跳转定位：抽屉打开时若携带 focusTab/focusId，切到对应 Tab、清筛选保证目标在第 1 页，加载后高亮并滚动到该记录 ──
 const applyingFocus = ref(false)

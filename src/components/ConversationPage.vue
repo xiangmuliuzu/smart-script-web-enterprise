@@ -53,9 +53,10 @@
   </section>
 </template>
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import LoadState from './LoadState.vue'
 import { usePortal } from '../utils/portal.js'
+import { isRealtimeConnected, onRealtime } from '../utils/realtime-socket.js'
 import { relativeText } from '../utils/enterprise.js'
 
 const props = defineProps({ open: Boolean, sessionId: { type: [Number, String], default: null } })
@@ -130,12 +131,27 @@ async function markAllRead() {
     emit('read')
   } finally { marking.value = false }
 }
-// 会话打开期间轻量轮询，保证新消息可见；关闭时立刻停止。
-// sessionId 变化（例如从另一个询盘点「打开沟通」）也要重新选会话，此时 open 可能已经是 true。
+// 长连接在线时轮询只作兜底（60s）；连接不可用时退回 5s，保证行为不依赖单条链路。
+const POLL_CONNECTED_MS = 60000
+const POLL_DISCONNECTED_MS = 5000
+let realtimeOff = []
+function restartPoll() {
+  clearInterval(poll)
+  poll = props.open ? setInterval(() => { loadMessages() }, isRealtimeConnected() ? POLL_CONNECTED_MS : POLL_DISCONNECTED_MS) : null
+}
+// 会话打开期间保持刷新；sessionId 变化（例如从另一个询盘点「打开沟通」）也要重新选会话。
 watch([() => props.open, () => props.sessionId], ([open]) => {
-  if (open) { load(); poll = setInterval(() => { loadMessages() }, 20000) }
-  else { clearInterval(poll); poll = null }
+  if (open) load()
+  restartPoll()
 }, { immediate: true })
-onBeforeUnmount(() => clearInterval(poll))
+onMounted(() => {
+  realtimeOff = [
+    onRealtime('connected', restartPoll),
+    onRealtime('disconnected', restartPoll),
+    onRealtime('reconnect', () => { load(); loadMessages() }),
+    onRealtime('chat', frame => { if (!props.open) return; if (frame?.sessionId && String(frame.sessionId) !== String(activeId.value)) load(); else loadMessages() })
+  ]
+})
+onBeforeUnmount(() => { realtimeOff.forEach(off => off()); realtimeOff = []; clearInterval(poll) })
 defineExpose({ sessions })
 </script>

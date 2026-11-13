@@ -110,6 +110,7 @@ import FeedbackDrawer from '../components/FeedbackDrawer.vue'
 import { getInfo, isAuthFailure, logout } from '../auth.js'
 import { portalKey } from '../utils/portal.js'
 import { friendlyErrorMessage } from '../utils/friendly-error.js'
+import { connectRealtime, disconnectRealtime, isRealtimeConnected, onRealtime } from '../utils/realtime-socket.js'
 import { avatarText, avatarUrl, realNameStatus, state } from '../utils/enterprise.js'
 
 const router = useRouter()
@@ -261,7 +262,33 @@ function onKeydown(event) {
   profileOpen.value = false
   feedbackOpen.value = false
 }
-onMounted(() => { load(); document.addEventListener('click', onDocumentClick); document.addEventListener('keydown', onKeydown) })
-onBeforeUnmount(() => { document.removeEventListener('click', onDocumentClick); document.removeEventListener('keydown', onKeydown) })
+// 长连接在线时角标无需定时轮询：帧到达即补拉一次；断开则退回 5s 轮询。
+let realtimeOff = []
+let unreadTimer = null
+function applyUnreadCadence() {
+  const wanted = isRealtimeConnected() ? 60000 : 5000
+  if (unreadTimer && unreadTimer.__interval === wanted) return
+  clearInterval(unreadTimer)
+  unreadTimer = setInterval(refreshUnread, wanted)
+  unreadTimer.__interval = wanted
+}
+onMounted(() => {
+  load(); document.addEventListener('click', onDocumentClick); document.addEventListener('keydown', onKeydown)
+  connectRealtime()
+  applyUnreadCadence()
+  realtimeOff = [
+    onRealtime('connected', applyUnreadCadence),
+    onRealtime('disconnected', applyUnreadCadence),
+    onRealtime('reconnect', refreshUnread),
+    onRealtime('notification', refreshUnread),
+    onRealtime('chat', refreshUnread)
+  ]
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick); document.removeEventListener('keydown', onKeydown)
+  realtimeOff.forEach(off => off()); realtimeOff = []
+  clearInterval(unreadTimer)
+  disconnectRealtime()
+})
 provide(portalKey, { api, user, auth, handleError, refreshUnread, unread, openTrade })
 </script>
