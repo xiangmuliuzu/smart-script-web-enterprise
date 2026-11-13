@@ -41,12 +41,11 @@ const emit = defineEmits(['close', 'open-trade', 'read'])
 const { api, handleError } = usePortal()
 // 交易域通知（TRANSACTION）按 businessType 映射到对应入口与按钮文案；
 // 后端通知仅携带 INQUIRY/ORDER/CONTRACT 三类业务主键，会话需从询盘进入故不单独映射。
-// DEMAND 已提升为顶级页签，不再属于 Cooperation 的 Tab，故只给 demand 标志位 + 任务主键。
+// DEMAND 通知不再给跳转：任务域页面已收归管理端，本端没有可去的任务详情。
 const TRADE_JUMP = {
   INQUIRY: { tab: 'inquiry', label: '查看询盘' },
   ORDER: { tab: 'order', label: '查看订单' },
   CONTRACT: { tab: 'contract', label: '查看合同' },
-  DEMAND: { demand: true, label: '查看任务' },
 }
 function tradeJumpOf(item) {
   return item && item.type === 'TRANSACTION' && item.businessId ? TRADE_JUMP[item.businessType] : null
@@ -54,7 +53,7 @@ function tradeJumpOf(item) {
 async function jumpTrade(item) {
   const jump = tradeJumpOf(item)
   if (!jump) return
-  emit('open-trade', jump.demand ? { demand: true, bizId: item.businessId } : { tab: jump.tab, bizId: item.businessId })
+  emit('open-trade', { tab: jump.tab, bizId: item.businessId })
   // 跳转查看即视为已读：与展开阅读同口径标记，避免跳完后未读红点残留
   if (!item.isRead) {
     try { await api.value.readMessage(item.messageId); item.isRead = true; emit('read') } catch { /* 标记失败不打断跳转 */ }

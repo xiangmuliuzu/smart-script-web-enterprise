@@ -136,7 +136,7 @@
         <div v-if="orderTotal > PAGE_SIZE" class="pagination-bar"><button class="btn sm ghost" :disabled="orderPageNum <= 1" @click="orderPageNum--; loadOrders()">上一页</button><span class="cost">第 {{ orderPageNum }} 页 / 共 {{ Math.ceil(orderTotal / PAGE_SIZE) }} 页</span><button class="btn sm ghost" :disabled="orderPageNum * PAGE_SIZE >= orderTotal" @click="orderPageNum++; loadOrders()">下一页</button></div>
       </template>
 
-      <!-- 任务广场已提升为顶级页签 /demand（广场/我发布的/发布与编辑/任务详情），不再在本抽屉内展示 -->
+      <!-- 任务域已从本端下线：发布与逐轮验收收归管理端，这里不再挂任务相关分区 -->
     </div>
     <PortalLayer v-model="orderContractVisible" :title="orderContractTitle" modal big>
       <div v-loading="orderContractLoading" class="preview-wrap">
@@ -696,7 +696,7 @@ async function applyFocus() {
   }
 }
 watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
-// 任务广场（列表/发布表单/托管支付）已全部移到顶级页签 /demand，本抽屉不再承担需求任务业务。
+// 任务域已整段下线：本抽屉只承担询盘 / 会话 / 合同 / 订单四类买方交易链路。
 </script>
 <style scoped>
 /* ── 会话列表 ── */

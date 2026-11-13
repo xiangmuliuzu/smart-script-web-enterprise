@@ -143,53 +143,7 @@ export const phoneChange = (step, body) => data('/api/v1/users/me/phone/change/'
 export const listFeedback = async () => asList(await data('/api/v1/feedback'))
 export const sendFeedback = form => data('/api/v1/feedback', { method: 'POST', body: { category: form.category, content: form.content, attachmentRef: form.attachmentRef } })
 
-/* ---------------- 任务广场（需求悬赏）：企业端=发布者侧，可发布/托管/验收/延期决策，不可接单 ---------------- */
-// 金额口径（后端 AppTradeDemandController 实测）：
-//   入参 budget / budgetMin / budgetMax = 分；stages[].amount = 元（parseStages 不做换算）；
-//   出参 budget / escrowAmount / depositAmount / stages[].amount / pay 返回 amount = 分。
-const demandBase = '/api/v1/trade/demand'
-const demandPath = demandId => demandBase + '/' + id(demandId)
-const stagePath = (demandId, stageId) => `${demandPath(demandId)}/stage/${id(stageId)}`
-// mine=published 查我方发布的全部任务（含进行中/完成，此分支才接受 status 过滤）；
-// 不传 mine 则为公开广场，后端强制 status=open ∧ escrow_status=escrowed 并忽略传入 status。
-export async function listDemands({ status, genreId, taskType, keyword, mine, sortBy, order, budgetMin, budgetMax, episodesMin, pageNum = 1, pageSize = 20 } = {}) {
-  const result = await data(demandBase + '/list?' + qs({ status, genreId, taskType, keyword, mine, sortBy, order, budgetMin, budgetMax, episodesMin, pageNum, pageSize }))
-  return { total: Number(result?.total || 0), list: asList(result) }
-}
-// 广场统计：availableCount / prizePoolFen(分) / todayNewCount / genreCounts / typeCounts，公开可接单口径
-export const demandStats = () => data(demandBase + '/stats')
-export const getDemand = demandId => data(demandPath(demandId))
-// 发布分镜任务时的源剧本候选：本人未删除作品（不排除已上架，源剧本仅作参考）
-export const sourceWorks = async () => asList(await data(demandBase + '/source-works'))
-// 源剧本文件上传：走交易域端点（发布者是买方，无创作者资格时 content/upload 会被拒），
-// 返回 { url(相对路径), fileName }
-export const uploadSourceScript = file => {
-  const form = new FormData()
-  form.append('file', file, file.name || 'script.txt')
-  return data(demandBase + '/upload-script', { method: 'POST', body: form })
-}
-// 查看源剧本：{ work?, chapters?, fileUrl?, fileName? }，任何登录用户可读（接单前评估）
-export const sourceScript = demandId => data(demandPath(demandId) + '/source-script')
-export const createDemand = form => data(demandBase, { method: 'POST', body: form })
-// 编辑：仅发布者本人、且未托管未接单时后端才放行，否则 400 带原因
-export const updateDemand = (demandId, form) => data(demandPath(demandId), { method: 'PUT', body: form })
-export const closeDemand = demandId => data(demandPath(demandId) + '/close', { method: 'PUT' })
-// 备用通路：开发直通「点一下完成托管」（与 APP 同端点同开关，prod 护栏下后端 400 拒绝）
-export const devPassEscrow = demandId => data(demandPath(demandId) + '/pay/escrow/dev-pass', { method: 'POST' })
-// 支付宝沙箱入账（次入口，沙箱不可用时仅提示）：发布者托管付款（需服务端查单确认）。接单侧押金付款不在本端提供。
-// refresh=true 让服务端换新商户单号重出收款码，用于旧码失效后手动/自动换码。
-export const payEscrow = (demandId, refresh = false) => data(demandPath(demandId) + `/pay/escrow${refresh ? '?refresh=true' : ''}`, { method: 'POST' })
-export const confirmEscrow = demandId => data(demandPath(demandId) + '/pay/escrow/confirm', { method: 'POST' })
-// 验收轮次（出参 amount 为分）：review 通过即放出本轮款项，是逐轮放款的唯一触发点
-export const demandStages = demandId => data(demandPath(demandId) + '/stages')
-export const reviewStage = (demandId, stageId, body) => data(stagePath(demandId, stageId) + '/review', { method: 'PUT', body })
-// 验收前查看交付作品：仅发布者可调，正文只含本轮 episodeTo 内的章节，之后章节 readable=false
-export const deliverableWork = (demandId, stageId) => data(stagePath(demandId, stageId) + '/deliverable-work')
-// 延期：决定创作者申请 / 发布者自主延时（不经申请直接顺延），两者均写入延时记录
-export const decideExtend = (demandId, stageId, approved) => data(stagePath(demandId, stageId) + '/extend/decision', { method: 'PUT', body: { approved } })
-export const selfExtendStage = (demandId, stageId, body) => data(stagePath(demandId, stageId) + '/extend', { method: 'PUT', body })
-export const stageExtendHistory = (demandId, stageId) => data(stagePath(demandId, stageId) + '/extend/history')
-export const demandExtendHistory = demandId => data(demandPath(demandId) + '/extend/history')
-// 任务会话：发布者发起必须显式指定对手用户（targetUserId 是查询参数，不是 body 字段）
-export const demandChatSession = (demandId, targetUserId) => data(demandPath(demandId) + '/chat/session?' + qs({ targetUserId }), { method: 'POST' })
+/* ---------------- 任务广场（需求悬赏）已退役 ---------------- */
+// 任务发布、逐轮验收、延时审批与关闭征集全部收归管理端 /api/v1/admin/trade/demand，
+// 托管与押金资金环节同时下线；本端不再保留任何 demand 接口封装。
 

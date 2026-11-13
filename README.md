@@ -1,5 +1,9 @@
 # 剧云策 PC 企业端
 
+> **任务大厅已下线（2026-11-13）**：任务发布、逐轮验收、延时审批与关闭征集全部收归管理端 `smart-script-web`（`/api/v1/admin/trade/demand`），资金托管与创作者押金环节同时下线——平台在线下与需求方商定并收款后代为发布。本端随之移除「任务广场」顶级页签、`src/views/demand/**`、`src/components/demand/**`、`src/utils/demand.js` 与 `src/api/enterprise.js` 的任务接口封装；后端旧的用户侧发布链路（`POST/PUT /api/v1/trade/demand/**`、`/pay/escrow*`、`/pay/deposit*`）为硬下线。
+>
+> 本端仍是个人版权采购的 PC 入口：采购工作台、询盘 / 会话 / 合同 / 订单、版权证书与印章均未改动，`/enterprise/` 部署不变。
+
 Vue 3 + Vite + Element Plus。**还原基准是原型 `剧云策-企业端原型.html` 在浏览器里执行完所有初始化脚本后的最终渲染状态**，不是 HTML 前半部分的静态结构。原型最终态只有一个主体视图「采购工作台」`/dashboard`；发现剧本、我的购买作品、交易中心等已被原型脚本改造成顶栏入口与浮层，因此在项目里同样是浮层而非路由。原型样式原样搬到 `src/assets/styles/prototype.css`（6 个 `<style>` 块合并，不修改规则），Element Plus 主题桥接在 `src/assets/styles/portal.css`。
 
 浮层与对应能力：交易中心抽屉（询盘 / 订单 / 合同）、消息页、沟通页、作品详情页、章节试读弹层、订单与合同详情弹层、个人资料抽屉、意见反馈抽屉。

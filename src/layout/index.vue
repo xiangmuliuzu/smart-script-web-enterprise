@@ -6,7 +6,6 @@
         <button class="brand" type="button" @click="goView('/dashboard')"><strong>剧云策</strong><span>个人版权采购中心</span></button>
         <nav class="nav">
           <button data-view="dashboard" :data-current="currentView === 'dashboard' ? 'true' : 'false'" type="button" @click="goView('/dashboard')">采购工作台</button>
-          <button data-view="demand" :data-current="currentView === 'demand' ? 'true' : 'false'" type="button" @click="goView('/demand')">任务广场</button>
         </nav>
         <div class="top-actions">
           <div class="nav-group" role="group" aria-label="交易链路">
@@ -155,8 +154,8 @@ const auth = computed(() => ({
 const messageUnread = computed(() => unread.message)
 const chatUnread = computed(() => unread.chat)
 const activeInquiries = computed(() => unread.inquiries)
-// 顶栏页签高亮：任务详情/编辑都归属于「任务广场」页签
-const currentView = computed(() => (route.path === '/demand' || route.path.startsWith('/demand/') ? 'demand' : 'dashboard'))
+// 顶栏只剩采购工作台一个页签，任务广场已随发布链路收归管理端而移除。
+const currentView = computed(() => 'dashboard')
 // 切换顶级页签先收起所有浮层，再跳路由；已在当前页签时只收起浮层（与原来 brand 点击行为一致）。
 function goView(path) {
   closeAll()
@@ -185,14 +184,8 @@ function openCopyright() { tradeOpen.value = false; sealOpen.value = false; copy
 function openSeal() { tradeOpen.value = false; copyrightOpen.value = false; sealOpen.value = true }
 function clearTradeFocus() { tradeFocusTab.value = ''; tradeFocusId.value = '' }
 // 通知跳转：messageOpen 关闭后带着目标 Tab 与业务主键打开 Cooperation，由其定位到具体记录。
-// 任务域通知例外：任务广场已提升为顶级页签，直接跳 /demand/{demandId} 详情，不再开交易抽屉。
 function openTradeFrom(payload) {
   messageOpen.value = false
-  if (payload?.demand) {
-    const id = payload.bizId != null && payload.bizId !== '' ? encodeURIComponent(String(payload.bizId)) : ''
-    router.push(id ? `/demand/${id}` : '/demand/published')
-    return
-  }
   const tab = payload?.tab || 'inquiry'
   if (payload?.bizId != null && payload.bizId !== '') { tradeFocusTab.value = tab; tradeFocusId.value = String(payload.bizId) }
   else { tradeFocusTab.value = ''; tradeFocusId.value = '' }

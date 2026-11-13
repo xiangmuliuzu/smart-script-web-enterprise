@@ -8,16 +8,14 @@ export function isAuthFailure(error) {
   return error?.status === 401 || [401, 40100, 40301].includes(error?.code)
 }
 // 已实现的主体路由白名单，新增页面必须同步登记（README 的回跳约定）。
-// 采购工作台 + 任务广场（发布者侧）是两块主体页面，其余入口仍是浮层。
-const IMPLEMENTED = ['/session', '/session-check', '/dashboard', '/demand', '/demand/published', '/demand/create']
-// 任务详情 /demand/123 与编辑 /demand/123/edit 是动态段，精确匹配命中不了，单独放行
-const IMPLEMENTED_PATTERN = /^\/demand\/\d+(\/edit)?$/
+// 主体页面只剩采购工作台；任务发布与买方动作已收归管理端，本端不再有任务路由。
+const IMPLEMENTED = ['/session', '/session-check', '/dashboard']
 export function safeRedirect(raw) {
   if (typeof raw !== 'string' || raw.includes('\\')) return '/session'
   try {
     const url = new URL(raw, 'https://portal.invalid')
     if (!raw.startsWith('/') || raw.startsWith('//') || url.origin !== 'https://portal.invalid') return '/session'
-    return IMPLEMENTED.includes(url.pathname) || IMPLEMENTED_PATTERN.test(url.pathname) ? url.pathname + url.search + url.hash : '/session'
+    return IMPLEMENTED.includes(url.pathname) ? url.pathname + url.search + url.hash : '/session'
   } catch { return '/session' }
 }
 export function assertUser(user) {
