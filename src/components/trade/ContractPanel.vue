@@ -31,7 +31,7 @@
             <button v-if="isEditable(c)" class="btn sm ghost" :disabled="uploading" @click="onUploadClick(c)">{{ c.sourceType === 'uploaded' ? '重新上传' : '上传合同' }}</button>
             <button v-if="c.sourceType === 'uploaded' && isEditable(c)" class="btn sm ghost" :disabled="uploading" @click="onSwitchClick(c)">切回模板</button>
             <button v-if="canSign(c)" class="btn sm" @click="openSign(c)">签署合同</button>
-            <a v-if="(c.status === 'completed' || c.status === 'archived') && c.signedPdfUrl" class="btn sm ghost" :href="mediaUrl(c.signedPdfUrl)" target="_blank" rel="noopener">下载 PDF</a>
+            <button v-if="(c.status === 'completed' || c.status === 'archived') && c.signedPdfUrl" class="btn sm ghost" @click="downloadSignedPdf(c)">下载 PDF</button>
           </div>
         </div>
       </div>
@@ -102,7 +102,7 @@ import LoadState from '../LoadState.vue'
 import ContractSignDialog from './ContractSignDialog.vue'
 import ContractEditor from './ContractEditor.vue'
 import { usePortal } from '../../utils/portal.js'
-import { contractMoney, licenseLabel, mediaUrl, avatarUrl, contractHtml, asList } from '../../utils/enterprise.js'
+import { contractMoney, licenseLabel, mediaUrl, avatarUrl, contractHtml, asList, downloadProfileFile } from '../../utils/enterprise.js'
 import { contractDocumentText } from '../../utils/contractDocument.js'
 
 const props = defineProps({ userId: Number })
@@ -150,6 +150,15 @@ const signedText = v => (isSigned(v) ? '已签' : '未签')
 const signedClass = v => (isSigned(v) ? 'sign-done' : 'sign-todo')
 // 封面历史数据绝对与相对混存，统一经 avatarUrl 归一到当前 API 前缀
 const coverUrl = raw => avatarUrl(raw) || raw
+
+/** 下载已签署 PDF：带签名地址只用来取字节流，不当新页面打开（见 downloadProfileFile）。 */
+async function downloadSignedPdf(c) {
+  try {
+    await downloadProfileFile(c.signedPdfUrl, `合同_${c.contractNo || c.contractId}.pdf`)
+  } catch (e) {
+    ElMessage.error(e.message || '合同下载失败')
+  }
+}
 
 /** 我可签署：仅 pending/partial_signed 且我这一侧（买方）未签。 */
 function canSign(c) {

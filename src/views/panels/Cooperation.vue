@@ -144,7 +144,7 @@
         <div v-else class="load-state"><p>{{ orderContractLoading ? '合同加载中…' : '合同内容不可用' }}</p></div>
       </div>
       <div class="contract-modal-foot">
-        <a v-if="(orderContract?.status === 'completed' || orderContract?.status === 'archived') && orderContract?.signedPdfUrl" class="btn sm ghost" :href="mediaUrl(orderContract.signedPdfUrl)" target="_blank" rel="noopener">下载 PDF</a>
+        <button v-if="(orderContract?.status === 'completed' || orderContract?.status === 'archived') && orderContract?.signedPdfUrl" class="btn sm ghost" @click="downloadOrderContractPdf(orderContract)">下载 PDF</button>
         <button v-if="canSignOrderContract" class="btn sm" @click="orderSignVisible = true">签署合同</button>
       </div>
     </PortalLayer>
@@ -171,7 +171,7 @@ import ContractSignDialog from '../../components/trade/ContractSignDialog.vue'
 import TradeTemplatePanel from '../../components/trade/TradeTemplatePanel.vue'
 import { usePortal } from '../../utils/portal.js'
 import { isRealtimeConnected, onRealtime } from '../../utils/realtime-socket.js'
-import { avatarUrl, contractHtml, contractMoney, mediaUrl, dateText, asList } from '../../utils/enterprise.js'
+import { avatarUrl, contractHtml, contractMoney, mediaUrl, dateText, asList, downloadProfileFile } from '../../utils/enterprise.js'
 
 const props = defineProps({ modelValue: Boolean, initialTab: String, focusTab: String, focusId: [String, Number] })
 const emit = defineEmits(['update:modelValue', 'clear-focus'])
@@ -194,6 +194,15 @@ const isBuyerOfOrder = o => Number(o?.buyerId) === userId.value
 const isTerminalOrder = o => ['cancelled', 'refunded'].includes(o?.status)
 // 封面历史数据绝对与相对混存，统一经 avatarUrl 归一到当前 API 前缀
 const coverUrl = raw => avatarUrl(raw) || raw
+
+/** 下载订单合同的已签署 PDF：带签名地址只用来取字节流，不当新页面打开（见 downloadProfileFile）。 */
+async function downloadOrderContractPdf(contract) {
+  try {
+    await downloadProfileFile(contract.signedPdfUrl, `合同_${contract.contractNo || contract.contractId}.pdf`)
+  } catch (e) {
+    ElMessage.error(e.message || '合同下载失败')
+  }
+}
 const counterpartyOf = r => {
   const isBuyer = Number(r?.buyerId) === userId.value
   const name = isBuyer ? (r.sellerName || '用户' + r.sellerId) : (r.buyerName || '用户' + r.buyerId)

@@ -99,11 +99,52 @@ export function mediaUrl(raw, apiBase = import.meta.env?.VITE_APP_BASE_API || '/
 
 /** 对路径每一段 decode 后再 encode，避免中文未编码或二次编码。 */
 export function encodeMediaPath(path) {
-  return String(path || '').split('/').map(seg => {
+  // 查询串（合同材料的 exp/sig 签名）原样保留：逐段 encode 会把 ? = & 转义成 %3F/%26/%3D，
+  // 后端拿到的是一个普通文件名，签名校验不过 → 403。
+  const value = String(path || '')
+  const queryIndex = value.indexOf('?')
+  const pathname = queryIndex >= 0 ? value.slice(0, queryIndex) : value
+  const query = queryIndex >= 0 ? value.slice(queryIndex) : ''
+  return pathname.split('/').map(seg => {
     if (!seg) return ''
     try { return encodeURIComponent(decodeURIComponent(seg)) }
     catch { return encodeURIComponent(seg) }
-  }).join('/')
+  }).join('/') + query
+}
+
+/**
+ * 合同材料（签署 PDF 等）走鉴权下载：先 fetch 成 Blob 再交给浏览器保存。
+ *
+ * 不能把带签名地址直接挂在 <a href> 上当新页面打开：SPA 的 history 路由会把
+ * `/profile/...` 这类多段路径吃成前端路由，页面渲染出 404；而且标签页/历史记录
+ * 会留下一个带签名、有效期内可读的私有合同地址。下载只取字节流，地址不出现在界面上。
+ */
+export async function downloadProfileFile(rawUrl, fileName, apiBase) {
+  const url = mediaUrl(rawUrl, apiBase)
+  if (!url) throw new Error('文件地址无效')
+  let response
+  try {
+    response = await fetch(url)
+  } catch {
+    throw new Error('网络异常，文件下载失败')
+  }
+  if (!response.ok) {
+    throw new Error(response.status === 403 ? '文件链接已过期，请刷新页面后重试' : `文件下载失败（HTTP ${response.status}）`)
+  }
+  const blob = await response.blob()
+  const contentType = (response.headers.get('content-type') || blob.type || '').toLowerCase()
+  // 前端路由兜底页会以 200 + text/html 返回，不能当成文件存下去
+  if (contentType.includes('text/html') || contentType.includes('application/json')) {
+    throw new Error('文件不可用，请刷新页面后重试')
+  }
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = fileName || 'contract.pdf'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(objectUrl)
 }
 
 /**
