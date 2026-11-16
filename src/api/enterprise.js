@@ -1,0 +1,149 @@
+import { request } from '../auth.js'
+import { asList, qs } from '../utils/enterprise.js'
+
+// 沿用若依 request：认证响应保持顶层结构，业务接口在这里读取 data。
+const data = async (path, options) => (await request(path, options)).data
+const id = value => encodeURIComponent(value)
+
+/* ---------------- 询盘（我方是买方） ---------------- */
+export async function listInquiries({ status, keyword, pageNum = 1, pageSize = 10 } = {}) {
+  const result = await data('/api/v1/trade/inquiry/list?' + qs({ role: 'buyer', status, keyword, pageNum, pageSize }))
+  return { total: Number(result?.total || 0), list: asList(result) }
+}
+export const getInquiry = inquiryId => data('/api/v1/trade/inquiry/' + id(inquiryId))
+export const closeInquiry = inquiryId => data('/api/v1/trade/inquiry/' + id(inquiryId) + '/close', { method: 'PUT' })
+// 询盘沟通会话：inquiryId 是查询参数，不是 body 字段。
+export const openInquiryChat = inquiryId => data('/api/v1/trade/inquiry/chat/sessions?' + qs({ inquiryId }), { method: 'POST' })
+
+/* ---------------- 报价与议价 ---------------- */
+// 报价 price 字段按元直传，后端不做单位换算（只有订单 amount 是分）。
+export const latestQuote = inquiryId => data('/api/v1/trade/quote/latest?' + qs({ inquiryId }))
+export const counterOffer = body => data('/api/v1/trade/quote/counter-offer', { method: 'POST', body })
+export const acceptQuote = quoteId => data('/api/v1/trade/quote/' + id(quoteId) + '/accept', { method: 'PUT' })
+
+/* ---------------- 订单（amount 单位为分） ---------------- */
+export async function listOrders({ status, keyword, pageNum = 1, pageSize = 10 } = {}) {
+  const result = await data('/api/v1/trade/order/list?' + qs({ role: 'buyer', status, keyword, pageNum, pageSize }))
+  return { total: Number(result?.total || 0), list: asList(result) }
+}
+// 发起支付宝沙箱付款，并由服务端核验支付结果。refresh=true 时换新商户单号重出收款码（旧码失效后用）。
+export const payOrder = (orderId, refresh = false) => data('/api/v1/trade/order/' + id(orderId) + '/pay' + (refresh ? '?refresh=true' : ''), { method: 'POST' })
+export const confirmSandboxPayment = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay/confirm', { method: 'POST' })
+// 买方确认收货：delivering → completed，写入作者收益。
+export const completeOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/complete', { method: 'POST' })
+// 取消订单：仅 confirmed 可取消，买卖双方任一方可发起；reason 选填，走 query 参数。
+export const cancelOrder = (orderId, reason) => data('/api/v1/trade/order/' + id(orderId) + '/cancel' + (reason ? '?' + qs({ reason }) : ''), { method: 'POST' })
+
+/* ---------------- 合同（amount 单位为元；签署前置实名认证由后端校验） ---------------- */
+export const listContracts = params => data('/api/v1/trade/contracts/list?' + qs({ role: 'buyer', ...params }))
+export const getContractByOrder = orderId => data('/api/v1/trade/contracts/' + id(orderId))
+// 签署：multipart FormData（signatureImage / sealImage / placements），交由 request 侧识别不设 Content-Type。
+export const signContract = (contractId, formData) => data('/api/v1/trade/contracts/' + id(contractId) + '/sign', { method: 'POST', body: formData })
+// 平台模板目录（传 contractId 时按该合同生成贴合默认条款）。
+export const listContractTemplates = async contractId => asList(await data('/api/v1/trade/contracts/templates' + (contractId ? '?' + qs({ contractId }) : '')))
+// 正文条款编辑（进入签署即锁定）。
+export const updateContractContent = (contractId, payload) => data('/api/v1/trade/contracts/' + id(contractId) + '/content', { method: 'PUT', body: payload })
+// 上传 PDF 替换模板（multipart：file）与从上传件切回平台模板（body：{ templateId }）；均在进入签署后锁定。
+export const uploadContractSourcePdf = (contractId, file) => {
+  const form = new FormData()
+  form.append('file', file, file.name || 'contract.pdf')
+  return data('/api/v1/trade/contracts/' + id(contractId) + '/source-pdf', { method: 'POST', body: form })
+}
+export const switchContractToTemplate = (contractId, templateId) => data('/api/v1/trade/contracts/' + id(contractId) + '/source-pdf/off', { method: 'PUT', body: { templateId } })
+
+/* ---------------- 买方版权（确认收货后的交割 cert；只读预览/下载） ---------------- */
+export async function listBuyerCopyrights({ keyword, pageNum = 1, pageSize = 10 } = {}) {
+  const result = await data('/api/v1/trade/copyright/list?' + qs({ keyword, pageNum, pageSize }))
+  return { total: Number(result?.total || 0), list: asList(result) }
+}
+export const getBuyerCopyright = fileId => data('/api/v1/trade/copyright/' + id(fileId))
+
+/* ---------------- 交易会话定型文与印章（与 APP/创作者端同源） ---------------- */
+export const listTradeTemplates = async () => asList(await data('/api/v1/users/me/chat/trade-templates'))
+// 印章：与 App / 创作者端共用 /api/v1/content/copyright-seals；签约时筛审核通过且启用中的印章。
+const sealPath = sealId => '/api/v1/content/copyright-seals/' + id(sealId)
+export const listMySeals = async () => asList(await data('/api/v1/content/copyright-seals'))
+export const listSeals = listMySeals
+export const getSeal = sealId => data(sealPath(sealId))
+export const createSeal = form => data('/api/v1/content/copyright-seals', {
+  method: 'POST',
+  body: { sealName: form.sealName, sealImageUrl: form.sealImageUrl, materialUrls: form.materialUrls || '' }
+})
+export const updateSeal = (sealId, form) => data(sealPath(sealId), { method: 'PUT', body: form })
+export const disableSeal = sealId => data(sealPath(sealId) + '/disable', { method: 'PUT' })
+export const deleteSeal = sealId => data(sealPath(sealId), { method: 'DELETE' })
+// 印章图 / 审核材料：走 content/upload，type=material（与 App 一致）。
+export const upload = (file, purpose = 'seal') => {
+  const body = new FormData()
+  body.append('file', file)
+  if (purpose === 'seal') body.append('type', 'material')
+  return data('/api/v1/content/upload', { method: 'POST', body })
+}
+
+/* ---------------- 作品（内容市场） ---------------- */
+export async function listWorks({ keyword, categoryId, sort, page = 1, pageSize = 12 } = {}) {
+  const result = await data('/api/v1/content/works?' + qs({ keyword, categoryId, sort, page, pageSize }))
+  return { total: Number(result?.total || 0), list: asList(result) }
+}
+export const getWork = workId => data('/api/v1/content/works/' + id(workId))
+export const listChapters = workId => data('/api/v1/content/works/' + id(workId) + '/chapters')
+// 章节正文路径不嵌套在作品下；403 也会带 data（content 为空、readable=false）。
+export const getChapter = chapterId => data('/api/v1/content/chapters/' + id(chapterId))
+
+/* ---------------- 消息与沟通 ---------------- */
+export async function listMessages({ pageNum = 1, pageSize = 50, type, includeAnnouncements } = {}) {
+  // 企业端=买方门户：交易通知只取 BUYER/BOTH（及无受众的通用通知），卖方视角通知（如新询盘）不进此端。
+  const result = await data('/api/v1/messages?' + qs({ pageNum, pageSize, type, includeAnnouncements, portalRole: 'BUYER' }))
+  return { total: Number(result?.total || result?.length || 0), list: asList(result).map(item => ({ ...item, isRead: item.read, content: item.summary, createTime: item.createdAt })) }
+}
+export const getMessage = messageId => data('/api/v1/messages/' + id(messageId))
+export const unreadCount = async () => Number((await data('/api/v1/messages/unread-count'))?.total || 0)
+export const readMessage = messageId => data('/api/v1/messages/' + id(messageId) + '/read', { method: 'PUT' })
+export const readAllMessages = () => data('/api/v1/messages/read-all', { method: 'PUT' })
+
+export async function listChatSessions(params = {}) {
+  const result = await data('/api/v1/users/me/chat/sessions?' + qs(params))
+  return asList(result)
+}
+export const listChatMessages = async sessionId => asList(await data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages'))
+export const sendChatMessage = (sessionId, content) => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages', { method: 'POST', body: { msgType: 'TEXT', content } })
+export const readChatSession = sessionId => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/read', { method: 'PUT' })
+export const chatUnreadCount = async () => Number((await data('/api/v1/users/me/chat/unread-count'))?.chatUnread || 0)
+// 发起与平台管理员的沟通会话（GENERAL 平台沟通）；沟通页只列 ADMIN 会话，空列表时靠此按钮破局。
+export const openPlatformChat = () => data('/api/v1/users/me/chat/sessions', { method: 'POST', body: { businessType: 'GENERAL', businessName: '平台沟通' } })
+
+/* ---------------- 创作者门户 Cooperation.vue 复用别名（与用户端同名同义，企业端恒为买方） ---------------- */
+// 交易会话列表：会话列表按 sessionType=TRADE 过滤，返回数组（沿用 listChatSessions）。
+export const listTradeSessions = () => listChatSessions({ sessionType: 'TRADE' })
+// 由询盘创建/获取交易会话，返回新建会话（含 sessionId）。走交易域专用端点，幂等且带询盘校验。
+export const createTradeChat = inquiryId => openInquiryChat(inquiryId)
+// 会话消息列表 / 发送文本 / 最新报价：与 Cooperation.vue 调用名对齐。
+export const listChat = sessionId => listChatMessages(sessionId)
+export const sendChat = (sessionId, content) => sendChatMessage(sessionId, content)
+export const getLatestQuote = inquiryId => latestQuote(inquiryId)
+
+/* ---------------- 账户资料与认证 ---------------- */
+export const getProfile = () => data('/api/v1/users/me/profile')
+export const saveProfile = form => data('/api/v1/users/me/profile', { method: 'PUT', body: { nickname: form.nickname, avatar: form.avatar, bio: form.bio } })
+// 头像上传：App 域专用端点，响应 { url, path }，url 可直接写回资料 avatar 字段。
+export const uploadAvatar = file => {
+  const form = new FormData()
+  form.append('file', file)
+  return data('/api/v1/users/me/avatar', { method: 'POST', body: form })
+}
+export const getRealName = () => data('/api/v1/users/me/real-name')
+// 驳回后重提走 /resubmit；两条路径共享同一状态机（PENDING/APPROVED 均返回 409）。
+export const submitRealName = (form, resubmit = false) => data('/api/v1/users/me/real-name' + (resubmit ? '/resubmit' : ''), { method: 'POST', body: form })
+/* ---------------- 账号安全 ---------------- */
+// 与创作者端同端点：改密后需重新登录（无状态令牌不会自动失效）。
+export const changePassword = form => data('/api/v1/auth/password/change', { method: 'POST', body: form })
+// 换绑手机四步：old/send → old/verify（换取 stepUpToken）→ new/send → confirm。
+export const phoneChange = (step, body) => data('/api/v1/users/me/phone/change/' + step, { method: 'POST', body })
+
+export const listFeedback = async () => asList(await data('/api/v1/feedback'))
+export const sendFeedback = form => data('/api/v1/feedback', { method: 'POST', body: { category: form.category, content: form.content, attachmentRef: form.attachmentRef } })
+
+/* ---------------- 任务广场（需求悬赏）已退役 ---------------- */
+// 任务发布、逐轮验收、延时审批与关闭征集全部收归管理端 /api/v1/admin/trade/demand，
+// 托管与押金资金环节同时下线；本端不再保留任何 demand 接口封装。
+
