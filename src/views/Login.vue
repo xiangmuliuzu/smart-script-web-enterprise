@@ -1,5 +1,6 @@
 <template>
   <section class="screen" id="screen-login" data-active="true">
+    <button type="button" class="login-home" @click="router.push('/')">← 返回首页</button>
     <button type="button" class="portal-switch" @click="goOtherPortal">
       <span>切换至{{ portalSwitch.label }}</span>
       <el-icon><Right /></el-icon>
@@ -90,7 +91,7 @@ function onRegistered(result) {
   try {
     assertUser(result.user)
     localStorage.setItem(portal.tokenKey, result.token)
-    router.replace('/dashboard')
+    router.replace(safeRedirect(route.query.redirect))
   } catch (failure) {
     error.value = failure.message || '注册成功但自动登录失败，请使用新账号手动登录'
     mode.value = 'login'
@@ -234,4 +235,8 @@ onMounted(refreshCaptcha)
 @media (max-width: 900px) {
   .portal-switch { top: 14px; right: 16px; height: 32px; padding: 0 12px; font-size: 12.5px; }
 }
+</style>
+
+<style scoped>
+.login-home{position:absolute;left:28px;top:22px;z-index:4;border:1px solid #c9d3cc;background:#f7f7f0e8;border-radius:24px;padding:10px 18px;color:#2c4a52;font-size:15px;cursor:pointer}.login-visual>.brand{margin-top:36px}
 </style>

@@ -1,13 +1,16 @@
 <template>
   <div class="enterprise-portal">
     <LoadState v-if="pending || error" :pending="pending" :error="error" :retry="load" loading-text="正在确认账号身份…" />
-    <template v-else-if="user && api">
+    <template v-else-if="api">
       <header class="topbar">
-        <button class="brand" type="button" @click="goView('/dashboard')"><strong>剧云策</strong><span>个人版权采购中心</span></button>
+        <button class="brand" type="button" @click="goView('/')"><strong>剧云策</strong><span>个人版权采购中心</span></button>
         <nav class="nav">
+          <button data-view="home" :data-current="currentView === 'home' ? 'true' : 'false'" type="button" @click="goView('/')">首页</button>
           <button data-view="dashboard" :data-current="currentView === 'dashboard' ? 'true' : 'false'" type="button" @click="goView('/dashboard')">采购工作台</button>
         </nav>
         <div class="top-actions">
+          <button v-if="!user" class="btn guest-login" type="button" @click="router.push({path: '/login', query: {redirect: route.fullPath}})">请登录 ↗</button>
+          <template v-if="user">
           <div class="nav-group" role="group" aria-label="交易链路">
             <button class="nav-icon" type="button" aria-label="询盘" @click="openTrade('inquiry')">
               <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span v-if="activeInquiries" class="badge">{{ activeInquiries }}</span></span>
@@ -59,14 +62,16 @@
               <button type="button" class="account-menu-item danger" @click.stop="leave(); menuOpen = false">退出登录</button>
             </div>
           </div>
+          </template>
         </div>
       </header>
 
-      <main class="portal-main">
-        <router-view v-slot="{ Component }"><component :is="Component" ref="desk" @open-work="openWork" @open-trade="openTrade" @open-order="id => openTradeFrom({ tab: 'order', bizId: id })" /></router-view>
+      <main class="portal-main" :class="{'home-main': currentView === 'home'}">
+        <router-view v-slot="{ Component }"><component :is="Component" ref="desk" @inquiry-created="onInquiryCreated" @open-work="openWork" @open-trade="openTrade" @open-order="id => openTradeFrom({ tab: 'order', bizId: id })" /></router-view>
       </main>
 
       <!-- 原型最终态的浮层：作品详情页 + 章节阅读器 + 消息页 + 沟通页 + 交易抽屉 + 两个抽屉 + 订单/合同详情 -->
+      <template v-if="user">
       <WorkDetailPage ref="detail" :open="!!activeCard" :work-id="activeCard?.workId" :purchase="activeCard" :status="activeCard?.status || '购买中'"
                       @close="activeCard = null" @preview="previewChapter" @contact="contactAuthor" @open-contract="openTrade('contract')" />
       <ChapterReader :open="!!reader" :index="reader?.index || 0" :total="readerChapters.length" :chapter-id="reader?.chapterId"
@@ -88,6 +93,7 @@
       </PortalLayer>
       <ProfileDrawer :open="profileOpen" @close="profileOpen = false" @saved="reload" />
       <FeedbackDrawer :open="feedbackOpen" @close="feedbackOpen = false" />
+      </template>
     </template>
   </div>
 </template>
@@ -106,7 +112,8 @@ import SealPanel from '../views/panels/SealPanel.vue'
 import PortalLayer from '../components/PortalLayer.vue'
 import ProfileDrawer from '../components/ProfileDrawer.vue'
 import FeedbackDrawer from '../components/FeedbackDrawer.vue'
-import { getInfo, isAuthFailure, logout } from '../auth.js'
+import { getInfo, getToken, clearSession, isAuthFailure, logout } from '../auth.js'
+import { requireLogin } from '../utils/market.js'
 import { portalKey } from '../utils/portal.js'
 import { friendlyErrorMessage } from '../utils/friendly-error.js'
 import { connectRealtime, disconnectRealtime, isRealtimeConnected, onRealtime } from '../utils/realtime-socket.js'
@@ -154,10 +161,11 @@ const auth = computed(() => ({
 const messageUnread = computed(() => unread.message)
 const chatUnread = computed(() => unread.chat)
 const activeInquiries = computed(() => unread.inquiries)
-// 顶栏只剩采购工作台一个页签，任务广场已随发布链路收归管理端而移除。
-const currentView = computed(() => 'dashboard')
+// 首页和工作台共用顶栏及交易面板，切换时保持同一账号信息。
+const currentView = computed(() => route.path === '/' ? 'home' : 'dashboard')
 // 切换顶级页签先收起所有浮层，再跳路由；已在当前页签时只收起浮层（与原来 brand 点击行为一致）。
-function goView(path) {
+async function goView(path) {
+  if (path !== '/' && !await requireLogin(router, '采购工作台', path)) return
   closeAll()
   if (route.path !== path) router.push(path)
 }
@@ -165,7 +173,7 @@ watch(tradeOpen, visible => { if (!visible) desk.value?.loadTodo?.() })
 // 换头像后要重新允许加载。
 watch(() => user.value?.avatar, () => { avatarBroken.value = false })
 
-function closeAll() { messageOpen.value = false; conversationOpen.value = false; tradeOpen.value = false; copyrightOpen.value = false; sealOpen.value = false; activeCard.value = null; reader.value = null }
+function closeAll() { messageOpen.value = false; conversationOpen.value = false; tradeOpen.value = false; copyrightOpen.value = false; sealOpen.value = false; profileOpen.value = false; feedbackOpen.value = false; activeCard.value = null; reader.value = null }
 function openWork(card) { activeCard.value = card || null }
 async function openMessagePage() {
   if (tradeOpen.value || copyrightOpen.value || sealOpen.value) {
@@ -207,6 +215,7 @@ async function contactAuthor() {
   openTrade('session')
 }
 async function refreshUnread() {
+  if (!user.value || !api.value) return
   try {
     unread.message = await api.value.unreadCount()
     unread.chat = await api.value.chatUnreadCount()
@@ -218,29 +227,39 @@ function handleError(failure, { silent = false } = {}) {
   if (!silent) ElMessage.error(friendlyErrorMessage({ status: failure?.status, code: failure?.code, message: failure?.message }))
   return false
 }
+function onInquiryCreated(result) {
+  refreshUnread()
+  openTradeFrom({ tab: 'inquiry', bizId: result?.inquiryId })
+}
 async function load() {
   const current = ++generation
   pending.value = true
   error.value = ''
   try {
+    api.value = await import('../api/enterprise.js')
+    if (!getToken()) { user.value = null; return }
     const result = await getInfo()
     if (current !== generation) return
     user.value = result.user
-    api.value = await import('../api/enterprise.js')
     refreshUnread()
     // 待处理询盘数与实名认证状态用于顶栏标注，失败时按未确认显示。
     api.value.listInquiries({ pageSize: 50 }).then(result => { if (current === generation) unread.inquiries = result.list.length }).catch(() => {})
     api.value.getRealName().then(value => { if (current === generation) realName.value = value }).catch(() => {})
   } catch (failure) {
     if (current !== generation) return
-    if (isAuthFailure(failure)) { await router.replace('/login'); return }
+    if (isAuthFailure(failure)) {
+      clearSession(); user.value = null
+      if (!route.meta.public) await router.replace({path: '/login', query: {redirect: route.fullPath}})
+      return
+    }
     error.value = failure.message || '无法连接服务，请稍后重试'
   } finally { if (current === generation) pending.value = false }
 }
 async function leave() {
   ++generation
   try { await logout() } catch { ElMessage.warning('服务端退出未成功，已清理本地登录状态') }
-  await router.replace('/login')
+  user.value = null; closeAll()
+  await router.replace('/')
 }
 function onDocumentClick() { menuOpen.value = false }
 // 原型 s3 的 Escape 只做 closeModal + closeDrawer('messages'|'company'|'trade'|'feedback') + closeTradeDetail；
@@ -258,17 +277,22 @@ function onKeydown(event) {
 // 长连接在线时角标无需定时轮询：帧到达即补拉一次；断开则退回 5s 轮询。
 let realtimeOff = []
 let unreadTimer = null
+// 浏览器里 setInterval 返回的是 number，不能像 Node 那样挂属性，间隔另存一个变量。
+let unreadCadence = 0
 function applyUnreadCadence() {
+  if (!user.value) { clearInterval(unreadTimer); unreadTimer = null; return }
   const wanted = isRealtimeConnected() ? 60000 : 5000
-  if (unreadTimer && unreadTimer.__interval === wanted) return
+  if (unreadTimer && unreadCadence === wanted) return
   clearInterval(unreadTimer)
   unreadTimer = setInterval(refreshUnread, wanted)
-  unreadTimer.__interval = wanted
+  unreadCadence = wanted
 }
 onMounted(() => {
   load(); document.addEventListener('click', onDocumentClick); document.addEventListener('keydown', onKeydown)
-  connectRealtime()
-  applyUnreadCadence()
+  watch(user, value => {
+    if (value) connectRealtime(); else disconnectRealtime()
+    applyUnreadCadence()
+  }, { immediate: true })
   realtimeOff = [
     onRealtime('connected', applyUnreadCadence),
     onRealtime('disconnected', applyUnreadCadence),
@@ -285,3 +309,7 @@ onBeforeUnmount(() => {
 })
 provide(portalKey, { api, user, auth, handleError, refreshUnread, unread, openTrade })
 </script>
+
+<style scoped>
+.portal-main.home-main{padding:0}.guest-login{font-size:15px;padding:11px 24px}.topbar .nav{flex-shrink:0}.topbar .nav button{white-space:nowrap}
+</style>

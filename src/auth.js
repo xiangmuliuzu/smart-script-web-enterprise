@@ -8,8 +8,8 @@ export function isAuthFailure(error) {
   return error?.status === 401 || [401, 40100, 40301].includes(error?.code)
 }
 // 已实现的主体路由白名单，新增页面必须同步登记（README 的回跳约定）。
-// 主体页面只剩采购工作台；任务发布与买方动作已收归管理端，本端不再有任务路由。
-const IMPLEMENTED = ['/session', '/session-check', '/dashboard']
+// 首页支持作品详情和登录后的询盘回跳，工作台继续保留原路径。
+const IMPLEMENTED = ['/', '/session', '/session-check', '/dashboard']
 export function safeRedirect(raw) {
   if (typeof raw !== 'string' || raw.includes('\\')) return '/session'
   try {

@@ -81,8 +81,9 @@ export const upload = (file, purpose = 'seal') => {
 }
 
 /* ---------------- 作品（内容市场） ---------------- */
-export async function listWorks({ keyword, categoryId, sort, page = 1, pageSize = 12 } = {}) {
-  const result = await data('/api/v1/content/works?' + qs({ keyword, categoryId, sort, page, pageSize }))
+export const listHotRankings = async () => asList(await data('/api/v1/content/rankings?' + qs({ type: 'view', limit: 3 })))
+export async function listWorks({ keyword, categoryId, sort, recommendStatus, showScope, page = 1, pageSize = 12 } = {}) {
+  const result = await data('/api/v1/content/works?' + qs({ keyword, categoryId, sort, recommendStatus, showScope, page, pageSize }))
   return { total: Number(result?.total || 0), list: asList(result) }
 }
 export const getWork = workId => data('/api/v1/content/works/' + id(workId))
@@ -147,3 +148,7 @@ export const sendFeedback = form => data('/api/v1/feedback', { method: 'POST', b
 // 任务发布、逐轮验收、延时审批与关闭征集全部收归管理端 /api/v1/admin/trade/demand，
 // 托管与押金资金环节同时下线；本端不再保留任何 demand 接口封装。
 
+
+// 与 App 使用同一询盘入口；身份及卖方由服务端确定。
+export const createInquiry = body => data('/api/v1/trade/inquiry', { method: 'POST', body })
+export const getWorkCopyrightStatus = workId => data('/api/v1/trade/inquiry/copyright-status?' + qs({ workId }))
