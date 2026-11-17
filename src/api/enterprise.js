@@ -35,7 +35,7 @@ export const completeOrder = orderId => data('/api/v1/trade/order/' + id(orderId
 export const cancelOrder = (orderId, reason) => data('/api/v1/trade/order/' + id(orderId) + '/cancel' + (reason ? '?' + qs({ reason }) : ''), { method: 'POST' })
 
 /* ---------------- 合同（amount 单位为元；签署前置实名认证由后端校验） ---------------- */
-export const listContracts = params => data('/api/v1/trade/contracts/list?' + qs({ role: 'buyer', ...params }))
+export const listContracts = params => data('/api/v1/trade/contracts/list?' + qs({ ...params, role: 'buyer' }))
 export const getContractByOrder = orderId => data('/api/v1/trade/contracts/' + id(orderId))
 // 签署：multipart FormData（signatureImage / sealImage / placements），交由 request 侧识别不设 Content-Type。
 export const signContract = (contractId, formData) => data('/api/v1/trade/contracts/' + id(contractId) + '/sign', { method: 'POST', body: formData })
