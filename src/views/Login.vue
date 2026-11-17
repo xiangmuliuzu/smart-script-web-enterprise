@@ -22,33 +22,52 @@
 
       <div class="login-form-wrap">
         <div class="login-form">
-          <h2>{{ heading }}</h2>
-          <p>{{ subheading }}</p>
-          <template v-if="mode === 'login'">
-            <form @submit.prevent="submit">
-              <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="submit">
-                <el-form-item label="个人账号" prop="username"><el-input v-model="form.username" placeholder="请输入用户名、手机号或邮箱" autocomplete="username" size="large" /></el-form-item>
-                <el-form-item label="密码" prop="password"><el-input v-model="form.password" type="password" placeholder="请输入密码" show-password autocomplete="current-password" size="large" /></el-form-item>
-                <el-form-item v-if="captchaEnabled" label="验证码">
-                  <div class="captcha-row">
-                    <el-input v-model="form.code" placeholder="请输入验证码" maxlength="8" autocomplete="off" size="large" />
-                    <button type="button" class="captcha-img" :disabled="captchaLoading" aria-label="刷新验证码" @click="refreshCaptcha">
-                      <img v-if="captchaImage" :src="captchaImage" alt="验证码"><span v-else>点击重试</span>
-                    </button>
-                  </div>
-                </el-form-item>
-              </el-form>
-              <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="error-message" />
-              <!-- 原型 link-row 只有两个入口；「记住密码」是项目既有能力，保留但不额外占用一行。 -->
-              <div class="form-options"><el-checkbox v-model="remember">记住密码</el-checkbox><button type="button" class="link" @click="mode = 'reset'">忘记密码？</button></div>
-              <button class="btn block" type="submit" :disabled="loading || !captchaReady || captchaLoading">{{ loading ? '登录中…' : '登录个人中心' }}</button>
-            </form>
-            <div class="link-row">
-              <button class="link" type="button" @click="mode = 'sms'">短信登录</button>
-              <button class="link" type="button" @click="mode = 'register'">注册个人账号</button>
-            </div>
+          <!-- 扫码切换：右上角斜角三角，密码形态显示二维码图标，扫码形态显示电脑图标。 -->
+          <button
+            type="button"
+            class="corner-switch"
+            :aria-label="mode === 'qr' ? '返回账号密码登录' : '切换到扫码登录'"
+            @click="mode = mode === 'qr' ? 'login' : 'qr'"
+          >
+            <svg v-if="mode !== 'qr'" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 4h5v5H4zM15 4h5v5h-5zM4 15h5v5H4z" fill="none" stroke="currentColor" stroke-width="1.6" />
+              <path d="M15 15h2v2h-2zM19 15h1v1h-1zM15 19h1v1h-1zM18 18h2v2h-2z" fill="currentColor" />
+            </svg>
+            <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3.5 5.5h17v10h-17z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+              <path d="M8.5 19h7M12 15.5V19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+          </button>
+          <QrLoginPanel v-if="mode === 'qr'" />
+          <template v-else>
+            <h2>{{ heading }}</h2>
+            <p>{{ subheading }}</p>
+            <template v-if="mode === 'login'">
+              <form @submit.prevent="submit">
+                <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="submit">
+                  <el-form-item label="个人账号" prop="username"><el-input v-model="form.username" placeholder="请输入用户名、手机号或邮箱" autocomplete="username" size="large" /></el-form-item>
+                  <el-form-item label="密码" prop="password"><el-input v-model="form.password" type="password" placeholder="请输入密码" show-password autocomplete="current-password" size="large" /></el-form-item>
+                  <el-form-item v-if="captchaEnabled" label="验证码">
+                    <div class="captcha-row">
+                      <el-input v-model="form.code" placeholder="请输入验证码" maxlength="8" autocomplete="off" size="large" />
+                      <button type="button" class="captcha-img" :disabled="captchaLoading" aria-label="刷新验证码" @click="refreshCaptcha">
+                        <img v-if="captchaImage" :src="captchaImage" alt="验证码"><span v-else>点击重试</span>
+                      </button>
+                    </div>
+                  </el-form-item>
+                </el-form>
+                <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="error-message" />
+                <!-- 原型 link-row 只有两个入口；「记住密码」是项目既有能力，保留但不额外占用一行。 -->
+                <div class="form-options"><el-checkbox v-model="remember">记住密码</el-checkbox><button type="button" class="link" @click="mode = 'reset'">忘记密码？</button></div>
+                <button class="btn block" type="submit" :disabled="loading || !captchaReady || captchaLoading">{{ loading ? '登录中…' : '登录个人中心' }}</button>
+              </form>
+              <div class="link-row">
+                <button class="link" type="button" @click="mode = 'sms'">短信登录</button>
+                <button class="link" type="button" @click="mode = 'register'">注册个人账号</button>
+              </div>
+            </template>
+            <AccountPanel v-else :mode="mode" @back="mode = 'login'" @switch="mode = $event" @registered="onRegistered" @logged-in="onSmsLoggedIn" />
           </template>
-          <AccountPanel v-else :mode="mode" @back="mode = 'login'" @switch="mode = $event" @registered="onRegistered" @logged-in="onSmsLoggedIn" />
         </div>
       </div>
     </div>
@@ -63,6 +82,7 @@ import { Right } from '@element-plus/icons-vue'
 import { assertUser, getCaptcha, login, safeRedirect } from '../auth.js'
 import { portal, portalSwitch, portalSwitchHref } from '../portal.js'
 import AccountPanel from '../components/AccountPanel.vue'
+import QrLoginPanel from '../components/QrLoginPanel.vue'
 const route = useRoute()
 const router = useRouter()
 
@@ -164,12 +184,38 @@ onMounted(refreshCaptcha)
 .login-form .btn.block:not(:disabled):focus-visible,
 .login-form .btn.block:not(:disabled):active { background: #000; border-color: #000; }
 .login-form {
+  position: relative;
   width: min(100%, 344px);
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+/* 扫码切换：右上角斜角三角，图标落在三角内侧。 */
+.corner-switch {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  width: 60px;
+  height: 60px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 3px 0 0;
+  background: linear-gradient(225deg, var(--brand) 0 50%, transparent 50%);
+  color: #fff;
+  cursor: pointer;
+  transition: filter 160ms ease;
+}
+.corner-switch:hover { filter: brightness(1.12); }
+.corner-switch:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.corner-switch svg {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
 }
 .login-visual {
   position: relative;
