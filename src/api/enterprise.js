@@ -88,6 +88,8 @@ export async function listWorks({ keyword, categoryId, sort, recommendStatus, sh
 }
 export const getWork = workId => data('/api/v1/content/works/' + id(workId))
 export const listChapters = workId => data('/api/v1/content/works/' + id(workId) + '/chapters')
+// 分镜目录与章节同级：后端只返回审核通过的分镜，readable=false 时不含正文。
+export const listStoryboards = workId => data('/api/v1/content/works/' + id(workId) + '/storyboards')
 // 章节正文路径不嵌套在作品下；403 也会带 data（content 为空、readable=false）。
 export const getChapter = chapterId => data('/api/v1/content/chapters/' + id(chapterId))
 

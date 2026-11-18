@@ -44,6 +44,15 @@
                 <button type="button" class="btn light small" @click="$emit('preview', index)">章节预览</button>
               </div>
               <p v-if="!chapters.length" class="rights-note">该作品暂未开放试读章节。</p>
+              <div class="work-detail-subheading"><h3>分镜目录</h3><small>沿用关联章节的试读权限</small></div>
+              <div v-for="storyboard in storyboards" :key="storyboard.storyboardId" class="work-chapter-row">
+                <div>
+                  <span>{{ storyboard.chapterTitle || `第 ${storyboard.chapterNo || '?'} 章` }}</span>
+                  <small>{{ storyboard.wordCount || 0 }} 字 · 审核通过</small>
+                </div>
+                <button type="button" class="btn light small" :disabled="storyboard.readable === false" @click="previewStoryboard(storyboard)">{{ storyboard.readable === false ? '暂未开放' : '分镜试读' }}</button>
+              </div>
+              <p v-if="!storyboards.length" class="rights-note">该作品暂未开放审核通过的分镜。</p>
             </div>
           </section>
 
@@ -86,6 +95,13 @@
       </template>
       <LoadState v-else empty empty-text="未找到该作品。" />
     </div>
+    <el-dialog v-model="storyboardReaderOpen" :title="selectedStoryboard?.chapterTitle || '分镜试读'" width="min(860px, 92vw)" align-center append-to-body :close-on-click-modal="false" destroy-on-close>
+      <div class="storyboard-reader">
+        <p class="reader-kicker">{{ work?.title }} · 分镜试读</p>
+        <pre>{{ selectedStoryboard?.content || '该分镜暂无可展示内容。' }}</pre>
+        <p class="reader-limit">以上为服务器允许展示的分镜试读内容，完整内容按授权与交易结果开放。</p>
+      </div>
+    </el-dialog>
   </section>
 </template>
 <script setup>
@@ -103,6 +119,9 @@ const work = ref(null)
 const coverBroken = ref(false)
 const cover = computed(() => avatarUrl(work.value?.cover) || props.purchase?.cover || '')
 const chapters = ref([])
+const storyboards = ref([])
+const storyboardReaderOpen = ref(false)
+const selectedStoryboard = ref(null)
 const order = computed(() => props.purchase?.order || null)
 const purchased = computed(() => props.status === '已购买')
 const progress = [
@@ -115,7 +134,7 @@ const progress = [
 const progressIndex = computed(() => stepIndex({ hasOrder: !!order.value, orderDone: order.value?.status === 'confirmed', hasQuote: !!props.purchase?.hasQuote }))
 const chapterTitle = chapter => chapter.chapterTitle || '第 ' + (chapter.chapterNo || '?') + ' 章'
 async function load() {
-  if (!props.workId) { work.value = null; chapters.value = []; return }
+  if (!props.workId) { work.value = null; chapters.value = []; storyboards.value = []; return }
   pending.value = true
   error.value = ''
   coverBroken.value = false
@@ -124,10 +143,26 @@ async function load() {
     // 章节列表失败不该挡住作品信息，缺失时只显示未开放试读。
     const result = await api.value.listChapters(props.workId).catch(() => null)
     chapters.value = result?.list || []
+    const storyboardResult = await api.value.listStoryboards(props.workId).catch(() => [])
+    storyboards.value = Array.isArray(storyboardResult) ? storyboardResult : (storyboardResult?.list || storyboardResult?.rows || [])
   } catch (failure) {
     if (!handleError(failure, { silent: true })) error.value = failure.message || '加载作品详情失败'
   } finally { pending.value = false }
 }
-watch(() => [props.open, props.workId], ([open]) => { if (open) load() }, { immediate: true })
+function previewStoryboard(storyboard) {
+  if (!storyboard || storyboard.readable === false) return
+  selectedStoryboard.value = storyboard
+  storyboardReaderOpen.value = true
+}
+watch(() => [props.open, props.workId], ([open]) => { if (open) load(); else storyboardReaderOpen.value = false }, { immediate: true })
 defineExpose({ chapters, work })
 </script>
+<style scoped>
+.work-detail-subheading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 10px; padding-top: 16px; border-top: 1px solid var(--line); }
+.work-detail-subheading h3 { margin: 0; padding: 0; border: 0; font-size: 14px; }
+.work-detail-subheading small { color: var(--muted); }
+.storyboard-reader { max-height: 66vh; overflow: auto; padding: 8px 20px 16px; }
+.storyboard-reader pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 16px/1.9 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--ink); }
+.reader-kicker, .reader-limit { color: var(--muted); font-size: 13px; line-height: 1.8; }
+.reader-limit { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 14px; }
+</style>
