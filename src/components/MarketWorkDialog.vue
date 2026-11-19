@@ -41,7 +41,43 @@
           </button>
           <p v-if="!chapters.length">该作品暂未开放章节试读。</p>
         </div>
+        <div class="storyboard-heading">
+          <h3>分镜目录</h3>
+          <span>审核通过后，按关联章节的试读权限开放</span>
+        </div>
+        <LoadState v-if="storyboardsError" :error="storyboardsError" :retry="loadStoryboards" />
+        <div v-else class="market-storyboards">
+          <button
+            v-for="storyboard in storyboards"
+            :key="storyboard.storyboardId"
+            :disabled="storyboard.readable === false"
+            @click="readStoryboard(storyboard)"
+          >
+            <span>
+              <strong>{{ storyboard.chapterTitle || `第 ${storyboard.chapterNo || '?'} 章` }}</strong>
+              <small>{{ storyboard.wordCount || 0 }} 字 · 审核通过</small>
+            </span>
+            <small>{{ storyboard.readable === false ? '暂未开放' : '分镜试读 →' }}</small>
+          </button>
+          <p v-if="!storyboards.length">该作品暂未开放审核通过的分镜。</p>
+        </div>
       </section>
+    </div>
+  </el-dialog>
+  <el-dialog
+    v-model="storyboardReaderOpen"
+    :title="selectedStoryboard?.chapterTitle || '分镜试读'"
+    width="min(860px, 94vw)"
+    align-center
+    append-to-body
+    :close-on-click-modal="false"
+    destroy-on-close
+  >
+    <div class="market-reader storyboard-reader">
+      <p class="reader-kicker">{{ work?.title }} · 分镜试读</p>
+      <LoadState v-if="storyboardReading || storyboardReadError" :pending="storyboardReading" :error="storyboardReadError" />
+      <article v-else v-html="safeStoryboardContent"></article>
+      <p class="reader-limit">以上为服务器允许展示的分镜试读内容，完整内容按授权与交易结果开放。</p>
     </div>
   </el-dialog>
   <el-dialog
@@ -147,14 +183,21 @@ const { api, user } = usePortal()
 const router = useRouter()
 const work = ref(null),
   chapters = ref([]),
+  storyboards = ref([]),
   loading = ref(false),
   error = ref(''),
-  chaptersError = ref('')
+  chaptersError = ref(''),
+  storyboardsError = ref('')
 const readerOpen = ref(false),
   selectedChapter = ref(null),
   reading = ref(false),
   readError = ref(''),
   content = ref('')
+const storyboardReaderOpen = ref(false),
+  selectedStoryboard = ref(null),
+  storyboardReading = ref(false),
+  storyboardReadError = ref(''),
+  storyboardContent = ref('')
 const inquiryOpen = ref(false),
   copyrighted = ref(true),
   checking = ref(false),
@@ -186,12 +229,20 @@ const safeContent = computed(() =>
     ALLOWED_ATTR: []
   })
 )
+const safeStoryboardContent = computed(() =>
+  DOMPurify.sanitize(storyboardContent.value, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'h2', 'h3', 'h4', 'blockquote', 'ul', 'ol', 'li'],
+    ALLOWED_ATTR: []
+  })
+)
 async function load() {
   const run = ++loadRun
   loading.value = true
   error.value = ''
   chaptersError.value = ''
+  storyboardsError.value = ''
   chapters.value = []
+  storyboards.value = []
   work.value = null
   const id = props.workId
   try {
@@ -204,11 +255,26 @@ async function load() {
     } catch (failure) {
       if (run === loadRun) chaptersError.value = failure.message
     }
+    try {
+      const list = await api.value.listStoryboards(id)
+      if (run === loadRun) storyboards.value = asList(list)
+    } catch (failure) {
+      if (run === loadRun) storyboardsError.value = failure.message
+    }
     if (run === loadRun && props.initialAction === 'inquiry') await startInquiry()
   } catch (failure) {
     if (run === loadRun) error.value = failure.message
   } finally {
     if (run === loadRun) loading.value = false
+  }
+}
+async function loadStoryboards() {
+  if (!props.workId) return
+  storyboardsError.value = ''
+  try {
+    storyboards.value = asList(await api.value.listStoryboards(props.workId))
+  } catch (failure) {
+    storyboardsError.value = failure.message
   }
 }
 async function readChapter(chapter) {
@@ -234,6 +300,24 @@ async function readChapter(chapter) {
     if (run === readRun) readError.value = failure.message
   } finally {
     if (run === readRun) reading.value = false
+  }
+}
+function readStoryboard(storyboard) {
+  if (!storyboard?.storyboardId || storyboard.readable === false) return
+  selectedStoryboard.value = storyboard
+  storyboardReadError.value = ''
+  storyboardContent.value = ''
+  storyboardReaderOpen.value = true
+  storyboardReading.value = true
+  try {
+    const text = String(storyboard.content || '')
+    storyboardContent.value = text
+      ? text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+      : '该分镜暂无可展示内容。'
+  } catch (failure) {
+    storyboardReadError.value = failure.message || '分镜试读加载失败'
+  } finally {
+    storyboardReading.value = false
   }
 }
 async function loadCopyright() {
@@ -287,6 +371,7 @@ watch(
     ++readRun
     ++copyrightRun
     readerOpen.value = false
+    storyboardReaderOpen.value = false
     inquiryOpen.value = false
     if (id) load()
     else ++loadRun
@@ -383,6 +468,41 @@ onBeforeUnmount(() => {
 .market-chapters small {
   white-space: nowrap;
 }
+.storyboard-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 28px;
+}
+.storyboard-heading span {
+  font-size: 12px;
+  color: #716b61;
+}
+.market-storyboards {
+  border-top: 1px solid #ded9ce;
+  max-height: 300px;
+  overflow: auto;
+}
+.market-storyboards button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid #e8e3d9;
+  padding: 14px 8px;
+  background: transparent;
+  color: #2c4a52;
+}
+.market-storyboards button:hover { background: #edf2ec; }
+.market-storyboards button:disabled { color: #a5a49d; cursor: not-allowed; }
+.market-storyboards button > span { display: grid; gap: 4px; min-width: 0; }
+.market-storyboards button small { white-space: nowrap; }
+.market-storyboards button span small { color: #817564; }
+.storyboard-reader article { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 16px; }
 .market-reader {
   max-height: 66vh;
   overflow: auto;

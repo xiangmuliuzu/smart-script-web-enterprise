@@ -17,7 +17,8 @@
             type="search"
             maxlength="100"
             placeholder="搜索作品名称或故事关键词"
-          /><button type="submit">搜索作品 ↗</button>
+          /><button v-if="keyword || submittedKeyword || sort" class="search-reset-button" type="button" aria-label="重置搜索条件" @click="resetSearch">重置</button
+          ><button type="submit">搜索作品 ↗</button>
         </form>
         <button class="browse-link" @click="browse">浏览推荐作品 <span>↓</span></button>
         <div class="hero-foot">
@@ -84,7 +85,8 @@
           maxlength="100"
           aria-label="搜索作品"
           placeholder="输入作品名称或关键词"
-        /><button class="btn" type="submit">搜索</button
+        /><button v-if="keyword || submittedKeyword || sort" class="search-reset-button catalog-search-reset" type="button" aria-label="重置搜索条件" @click="resetSearch">重置</button
+        ><button class="btn" type="submit">搜索</button
         ><label
           >排序<select v-model="sort" @change="changeSort">
             <option value="">
@@ -390,6 +392,17 @@ onBeforeUnmount(() => {
   font-size: 16px;
   font-weight: 600;
 }
+.market-search .search-reset-button {
+  background: transparent;
+  color: #6b7a6d;
+  padding: 17px 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.market-search .search-reset-button:hover {
+  color: #2c5147;
+  background: #eef3ed;
+}
 .browse-link {
   display: flex;
   align-items: center;
@@ -594,6 +607,19 @@ onBeforeUnmount(() => {
   border: 1px solid #d0d7c9;
   border-radius: 3px;
   padding: 12px;
+}
+.catalog-filter .search-reset-button {
+  flex: none;
+  border: 1px solid #cdd5c4;
+  border-radius: 3px;
+  background: #f8f7f1;
+  color: #4d6759;
+  padding: 11px 14px;
+  white-space: nowrap;
+}
+.catalog-filter .search-reset-button:hover {
+  border-color: #8da795;
+  background: #eef3ed;
 }
 .catalog-filter label {
   margin-left: auto;
