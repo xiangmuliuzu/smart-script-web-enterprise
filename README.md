@@ -43,7 +43,7 @@ npm run gate
 
 ## 部署
 
-npm run build 输出 dist，固定挂载到 `/enterprise/`，对应服务器 http://124.221.131.38/enterprise/。Vite 资源前缀和 Vue Router history 使用同一基础路径；例如 `/enterprise/login`、`/enterprise/session`。将 dist 内容部署到企业端目录，`/enterprise/*` 的 SPA 路由必须回退到该目录的 index.html。
+npm run build 输出 dist，固定挂载到 `/enterprise/`，对应服务器 http://192.168.100.3:1100/enterprise/。Vite 资源前缀和 Vue Router history 使用同一基础路径；例如 `/enterprise/login`、`/enterprise/session`。将 dist 内容部署到企业端目录，`/enterprise/*` 的 SPA 路由必须回退到该目录的 index.html。
 
 生产默认 VITE_APP_BASE_API=/prod-api；网关需将站点根路径 /prod-api/* 去除前缀后转发至整体后端。接口地址不加 `/enterprise/`，例如 `/prod-api/api/v1/auth/login`。不要把 `/enterprise/login` SPA 地址代理到后端。
 管理员端位于 `/`，用户端位于 `/user/`。下述回跳地址是应用内部路径，由 Router 自动添加 `/enterprise/` 前缀，不能手工重复添加。当前版本的回跳白名单包含 /session、/session-check、/dashboard；新增主体路由时同步扩展。
