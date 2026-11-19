@@ -107,7 +107,8 @@ export async function listChatSessions(params = {}) {
   return asList(result)
 }
 export const listChatMessages = async sessionId => asList(await data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages'))
-export const sendChatMessage = (sessionId, content) => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages', { method: 'POST', body: { msgType: 'TEXT', content } })
+export const sendChatMessage = (sessionId, content, quoteMessageId) => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages', { method: 'POST', body: { msgType: 'TEXT', content, ...(quoteMessageId ? { quoteMessageId } : {}) } })
+export const recallChatMessage = (sessionId, messageId) => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages/' + id(messageId) + '/recall', { method: 'PUT' })
 export const readChatSession = sessionId => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/read', { method: 'PUT' })
 export const chatUnreadCount = async () => Number((await data('/api/v1/users/me/chat/unread-count'))?.chatUnread || 0)
 // 发起与平台管理员的沟通会话（GENERAL 平台沟通）；沟通页只列 ADMIN 会话，空列表时靠此按钮破局。
@@ -120,7 +121,8 @@ export const listTradeSessions = () => listChatSessions({ sessionType: 'TRADE' }
 export const createTradeChat = inquiryId => openInquiryChat(inquiryId)
 // 会话消息列表 / 发送文本 / 最新报价：与 Cooperation.vue 调用名对齐。
 export const listChat = sessionId => listChatMessages(sessionId)
-export const sendChat = (sessionId, content) => sendChatMessage(sessionId, content)
+export const sendChat = (sessionId, content, quoteMessageId) => sendChatMessage(sessionId, content, quoteMessageId)
+export const recallChat = (sessionId, messageId) => recallChatMessage(sessionId, messageId)
 export const getLatestQuote = inquiryId => latestQuote(inquiryId)
 
 /* ---------------- 账户资料与认证 ---------------- */
