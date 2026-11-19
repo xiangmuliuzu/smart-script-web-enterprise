@@ -33,11 +33,11 @@
           <button
             v-for="chapter in chapters"
             :key="chapter.chapterId"
-            :disabled="chapter.readable === false"
+            :disabled="!canReadChapter(chapter)"
             @click="readChapter(chapter)"
           >
             <span>{{ chapter.chapterTitle || `第 ${chapter.chapterNo} 章` }}</span
-            ><small>{{ chapter.readable === false ? '暂未开放' : '试读 →' }}</small>
+            ><small>{{ canReadChapter(chapter) ? '试读 →' : '暂未开放' }}</small>
           </button>
           <p v-if="!chapters.length">该作品暂未开放章节试读。</p>
         </div>
@@ -89,7 +89,7 @@
     :close-on-click-modal="false"
     destroy-on-close
   >
-    <div class="market-reader">
+    <div ref="chapterReader" class="market-reader">
       <p class="reader-kicker">{{ work?.title }} · {{ work?.authorName || '平台创作者' }}</p>
       <LoadState
         v-if="reading || readError"
@@ -99,6 +99,18 @@
       />
       <article v-else v-html="safeContent"></article>
       <p class="reader-limit">以上为服务器允许展示的章节内容，完整作品按授权与交易结果开放。</p>
+      <nav class="chapter-reader-nav" aria-label="试读章节翻页">
+        <button
+          type="button"
+          :disabled="reading || !previousChapter"
+          @click="readChapter(previousChapter)"
+        >‹ 上一章</button>
+        <button
+          type="button"
+          :disabled="reading || !nextChapter"
+          @click="readChapter(nextChapter)"
+        >下一章 ›</button>
+      </nav>
     </div>
   </el-dialog>
   <el-dialog
@@ -189,6 +201,7 @@ const work = ref(null),
   chaptersError = ref(''),
   storyboardsError = ref('')
 const readerOpen = ref(false),
+  chapterReader = ref(null),
   selectedChapter = ref(null),
   reading = ref(false),
   readError = ref(''),
@@ -208,6 +221,19 @@ const form = reactive({ licenseType: 'non_exclusive', intendedUse: '', budget: '
 let loadRun = 0,
   readRun = 0,
   copyrightRun = 0
+function canReadChapter(chapter) {
+  return Boolean(chapter?.chapterId) && chapter.readable !== false
+}
+const readableChapters = computed(() => chapters.value.filter(canReadChapter))
+const readingChapterIndex = computed(() =>
+  readableChapters.value.findIndex((chapter) =>
+    String(chapter.chapterId) === String(selectedChapter.value?.chapterId)
+  )
+)
+const previousChapter = computed(() => readableChapters.value[readingChapterIndex.value - 1])
+const nextChapter = computed(() =>
+  readingChapterIndex.value < 0 ? undefined : readableChapters.value[readingChapterIndex.value + 1]
+)
 const safeContent = computed(() =>
   DOMPurify.sanitize(content.value, {
     ALLOWED_TAGS: [
@@ -278,13 +304,14 @@ async function loadStoryboards() {
   }
 }
 async function readChapter(chapter) {
-  if (!chapter?.chapterId || chapter.readable === false) return
+  if (!canReadChapter(chapter)) return
   const run = ++readRun
   selectedChapter.value = chapter
   readerOpen.value = true
   reading.value = true
   readError.value = ''
   content.value = ''
+  if (chapterReader.value) chapterReader.value.scrollTop = 0
   try {
     const result = await api.value.getChapter(chapter.chapterId)
     if (run !== readRun) return
@@ -523,6 +550,33 @@ onBeforeUnmount(() => {
   border-top: 1px solid #ded9ce;
   margin-top: 30px;
   padding-top: 20px;
+}
+.chapter-reader-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 8px;
+}
+.chapter-reader-nav button {
+  flex: 1 1 0;
+  max-width: 180px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid #b8c8be;
+  border-radius: 6px;
+  background: #eff5f1;
+  color: #295345;
+  font: inherit;
+  cursor: pointer;
+}
+.chapter-reader-nav button:hover:not(:disabled) {
+  background: #e0ede5;
+}
+.chapter-reader-nav button:disabled {
+  border-color: #dedfd9;
+  background: #f4f4ef;
+  color: #747871;
+  cursor: not-allowed;
 }
 .market-inquiry {
   max-height: 65vh;
