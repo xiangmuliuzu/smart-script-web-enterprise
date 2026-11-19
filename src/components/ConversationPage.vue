@@ -25,7 +25,7 @@
                 <i :style="{ display: session.unread ? 'inline-block' : 'none' }"></i>
               </span>
               <span class="conversation-item-preview">{{ session.businessName || session.lastMessage || '业务沟通' }}</span>
-              <time>{{ relativeText(session.lastMessageTime || session.createdAt) }}</time>
+              <time>{{ sessionTimeText(session.lastMessageTime || session.createdAt) }}</time>
             </button>
             <p v-if="!sessions.length" class="rights-note">还没有与平台客服的沟通记录，点击上方「发起客服会话」联系平台。</p>
           </div>
@@ -35,7 +35,7 @@
           <header class="conversation-head">
             <b>{{ active?.peerName || '—' }}</b>
             <span>{{ active?.businessName || active?.sessionType || '业务沟通' }}</span>
-            <span>{{ active ? (active.status === 2 ? '已结束' : '沟通中') + ' · 最后更新 ' + relativeText(active.lastMessageTime || active.createdAt) : '尚未选择会话' }}</span>
+            <span>{{ active ? (active.status === 2 ? '已结束' : '沟通中') + ' · 最后更新 ' + sessionTimeText(active.lastMessageTime || active.createdAt) : '尚未选择会话' }}</span>
           </header>
           <div class="conversation-messages">
             <div v-for="message in messages" :key="message.messageId" class="conversation-message" :class="[Number(message.senderId) === Number(user?.userId) ? 'me' : 'other', message.recalled ? 'recalled' : '']">
@@ -69,7 +69,16 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import LoadState from './LoadState.vue'
 import { usePortal } from '../utils/portal.js'
 import { isRealtimeConnected, onRealtime } from '../utils/realtime-socket.js'
-import { relativeText } from '../utils/enterprise.js'
+import { relativeText, dateText } from '../utils/enterprise.js'
+
+// 会话行必须带钟点：全站共用的 relativeText 超过昨天只剩 MM-DD，
+// 这里给会话列表补回 HH:mm，消息气泡的写法不受影响。
+function sessionTimeText(value) {
+  if (!value) return '—'
+  const text = relativeText(value)
+  const time = dateText(value).slice(11, 16)
+  return /^\d{2}-\d{2}$/.test(text) && time ? text + ' ' + time : text
+}
 
 const props = defineProps({ open: Boolean, sessionId: { type: [Number, String], default: null } })
 const emit = defineEmits(['close', 'read'])
