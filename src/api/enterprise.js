@@ -100,7 +100,7 @@ export async function listMessages({ pageNum = 1, pageSize = 50, type, includeAn
   return { total: Number(result?.total || result?.length || 0), list: asList(result).map(item => ({ ...item, isRead: item.read, content: item.summary, createTime: item.createdAt })) }
 }
 export const getMessage = messageId => data('/api/v1/messages/' + id(messageId))
-export const unreadCount = async () => Number((await data('/api/v1/messages/unread-count'))?.total || 0)
+export const unreadCount = async () => Number((await data('/api/v1/messages/unread-count?' + qs({ portalRole: 'BUYER' })))?.total || 0)
 export const readMessage = messageId => data('/api/v1/messages/' + id(messageId) + '/read', { method: 'PUT' })
 export const readAllMessages = () => data('/api/v1/messages/read-all', { method: 'PUT' })
 
@@ -112,7 +112,8 @@ export const listChatMessages = async sessionId => asList(await data('/api/v1/us
 export const sendChatMessage = (sessionId, content, quoteMessageId) => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages', { method: 'POST', body: { msgType: 'TEXT', content, ...(quoteMessageId ? { quoteMessageId } : {}) } })
 export const recallChatMessage = (sessionId, messageId) => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages/' + id(messageId) + '/recall', { method: 'PUT' })
 export const readChatSession = sessionId => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/read', { method: 'PUT' })
-export const chatUnreadCount = async () => Number((await data('/api/v1/users/me/chat/unread-count'))?.chatUnread || 0)
+// 与沟通页同口径：客服徽标只统计 ADMIN 会话未读，不含交易会话。
+export const chatUnreadCount = async () => Number((await data('/api/v1/users/me/chat/unread-count?' + qs({ sessionType: 'ADMIN' })))?.chatUnread || 0)
 // 发起与平台管理员的沟通会话（GENERAL 平台沟通）；沟通页只列 ADMIN 会话，空列表时靠此按钮破局。
 export const openPlatformChat = () => data('/api/v1/users/me/chat/sessions', { method: 'POST', body: { businessType: 'GENERAL', businessName: '平台沟通' } })
 
