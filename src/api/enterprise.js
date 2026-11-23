@@ -53,6 +53,17 @@ export const uploadContractSourcePdf = (contractId, file) => {
 }
 export const switchContractToTemplate = (contractId, templateId) => data('/api/v1/trade/contracts/' + id(contractId) + '/source-pdf/off', { method: 'PUT', body: { templateId } })
 
+/* ---------------- 版权交割（企业端恒为买方：列表/详情/确认收货；无卖方上传） ---------------- */
+const deliveryBase = '/api/v1/trade/delivery'
+export async function listDeliveries({ status, pageNum = 1, pageSize = 10 } = {}) {
+  // role 固定 buyer，避免混入卖方视角
+  const result = await data(deliveryBase + '/list?' + qs({ role: 'buyer', status, pageNum, pageSize }))
+  return { total: Number(result?.total || 0), list: asList(result) }
+}
+export const getDelivery = deliveryId => data(deliveryBase + '/' + id(deliveryId))
+export const getDeliveryByOrder = orderId => data(deliveryBase + '/by-order/' + id(orderId))
+export const confirmDelivery = deliveryId => data(deliveryBase + '/' + id(deliveryId) + '/confirm', { method: 'POST' })
+
 /* ---------------- 买方版权（确认收货后的交割 cert；只读预览/下载） ---------------- */
 export async function listBuyerCopyrights({ keyword, pageNum = 1, pageSize = 10 } = {}) {
   const result = await data('/api/v1/trade/copyright/list?' + qs({ keyword, pageNum, pageSize }))
