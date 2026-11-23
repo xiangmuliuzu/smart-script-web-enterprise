@@ -11,40 +11,70 @@
           <div class="profile-summary">
             <label class="profile-avatar avatar-picker" :class="{ disabled: uploading || saving }" title="点击更换头像">
               <input type="file" accept="image/png,image/jpeg" aria-label="更换头像" :disabled="uploading || saving" @change="pickAvatar($event.target.files[0]); $event.target.value = ''">
-              <img v-if="avatar && !broken" :src="avatar" :alt="form.nickname + '的头像'" @error="broken = true">
-              <template v-else>{{ avatarText(form.nickname) }}</template>
+              <img v-if="avatar && !broken" :src="avatar" :alt="(profile?.nickname || '') + '的头像'" @error="broken = true">
+              <template v-else>{{ avatarText(profile?.nickname) }}</template>
             </label>
             <div>
               <b>{{ profile?.nickname || '未设置昵称' }}</b>
               <span>{{ realNameLabel }}</span>
             </div>
           </div>
-          <div class="profile-details-head"><h3>基本资料</h3><button v-if="!editing" type="button" class="btn ghost small" :disabled="uploading" @click="editing = true">修改</button></div>
-          <template v-if="editing">
-            <div class="field"><label for="profile-nickname">昵称</label><input id="profile-nickname" v-model="form.nickname" maxlength="15" placeholder="请输入昵称"></div>
-            <div class="field"><label for="profile-bio">个人简介</label><textarea id="profile-bio" v-model="form.bio" maxlength="200" placeholder="介绍一下你的采购偏好"></textarea></div>
-            <div class="profile-actions"><button class="btn" :disabled="saving || uploading" @click="save">{{ saving ? '保存中…' : '保存修改' }}</button><button type="button" class="btn ghost" :disabled="saving || uploading" @click="cancelEdit">取消</button></div>
-          </template>
-          <p v-else class="rights-note">{{ profile?.bio || '暂无个人简介' }}</p>
-          <hr style="border:0;border-top:1px solid var(--line);margin:28px 0">
-          <h3>实名认证</h3>
-          <p class="rights-note"><span class="tag" :class="realNameTone">{{ realNameLabelText }}</span> {{ realNameNote }}</p>
-          <p v-if="realNameStatusValue === 'APPROVED'" class="rights-note">姓名：{{ realName?.realNameMasked || '—' }} · 证件号：{{ realName?.idNumberMasked || '—' }}</p>
-          <!-- 只有未提交 / 被驳回可提交，与后端状态机一致：审核中或已认证会被 409 拒绝。 -->
-          <form v-if="submittable" class="real-name-form" @submit.prevent="verify">
-            <div class="field">
-              <label>真实姓名</label>
-              <input v-model="identity.realName" maxlength="32" autocomplete="off" placeholder="请输入证件上的姓名">
-            </div>
-            <div class="field">
-              <label>身份证号</label>
-              <input v-model="identity.idNumber" maxlength="18" autocomplete="off" placeholder="请输入身份证号">
-            </div>
-            <p v-if="identityError" class="form-error" role="alert">{{ identityError }}</p>
-            <button class="btn small" style="margin-top:12px" :disabled="verifying">{{ verifying ? '提交中…' : '提交认证' }}</button>
-          </form>
-          <hr style="border:0;border-top:1px solid var(--line);margin:28px 0">
-          <h3>账号安全</h3>
+
+          <!-- 与创作者端一致：默认只读展示，点「修改」进入编辑，保存或取消后回到只读。 -->
+          <div class="profile-section-head">
+            <h3>个人资料</h3>
+            <button v-if="!editing" type="button" class="btn ghost small" :disabled="uploading" @click="editing = true">修改</button>
+          </div>
+          <div class="profile-card">
+            <template v-if="editing">
+              <div class="field"><label for="profile-nickname">笔名 / 昵称</label><input id="profile-nickname" v-model="form.nickname" maxlength="15" placeholder="请输入昵称"></div>
+              <div class="field"><label for="profile-bio">个人简介</label><textarea id="profile-bio" v-model="form.bio" maxlength="200" placeholder="介绍一下你的采购偏好"></textarea></div>
+              <p v-if="profileError" class="form-error" role="alert">{{ profileError }}</p>
+              <div class="profile-actions">
+                <button type="button" class="btn small" :disabled="saving || uploading" @click="save">{{ saving ? '保存中…' : '保存修改' }}</button>
+                <button type="button" class="btn ghost small" :disabled="saving || uploading" @click="cancelEdit">取消</button>
+              </div>
+            </template>
+            <template v-else>
+              <p class="rights-note">{{ profile?.bio || '暂无个人简介' }}</p>
+              <p v-if="profileError" class="form-error" role="alert">{{ profileError }}</p>
+            </template>
+          </div>
+
+          <div class="profile-section-head">
+            <h3>实名认证</h3>
+            <span class="profile-count">{{ realNameLabelText }}</span>
+          </div>
+          <div class="profile-card">
+            <p class="rights-note"><span class="tag" :class="realNameTone">{{ realNameLabelText }}</span> {{ realNameNote }}</p>
+            <p v-if="realNameStatusValue === 'APPROVED'" class="rights-note">姓名：{{ realName?.realNameMasked || '—' }} · 证件号：{{ realName?.idNumberMasked || '—' }}</p>
+            <!-- 只有未提交 / 被驳回可提交，与后端状态机一致：审核中或已认证会被 409 拒绝。
+                 实名材料按契约必须提交身份证正反面图片，与创作者端、App 同一接口。 -->
+            <form v-if="submittable" class="real-name-form" @submit.prevent="verify">
+              <div class="field">
+                <label>真实姓名</label>
+                <input v-model="identity.realName" maxlength="32" autocomplete="off" placeholder="请输入证件上的姓名">
+              </div>
+              <div class="field">
+                <label>身份证号</label>
+                <input v-model="identity.idNumber" maxlength="18" autocomplete="off" placeholder="请输入身份证号">
+              </div>
+              <div class="field">
+                <label>身份证正面（人像面）</label>
+                <input type="file" accept="image/jpeg,image/png,image/gif,image/bmp" required @change="identity.front = $event.target.files[0] || null">
+              </div>
+              <div class="field">
+                <label>身份证反面（国徽面）</label>
+                <input type="file" accept="image/jpeg,image/png,image/gif,image/bmp" required @change="identity.back = $event.target.files[0] || null">
+              </div>
+              <p v-if="identityError" class="form-error" role="alert">{{ identityError }}</p>
+              <button class="btn small" style="margin-top:12px" :disabled="verifying">{{ verifying ? '提交中…' : '提交认证' }}</button>
+            </form>
+          </div>
+
+          <div class="profile-section-head">
+            <h3>账号安全</h3>
+          </div>
           <ul class="security-list">
             <li>
               <div><b>登录密码</b><span>定期修改更安全</span></div>
@@ -129,10 +159,12 @@ const editing = ref(false)
 const uploading = ref(false)
 const verifying = ref(false)
 const identityError = ref('')
+// 保存资料的错误显示在资料卡片内（与创作者端同一交互），不弹全局提示。
+const profileError = ref('')
 const profile = ref(null)
 const realName = ref(null)
 const form = reactive({ nickname: '', bio: '', avatar: '' })
-const identity = reactive({ realName: '', idNumber: '' })
+const identity = reactive({ realName: '', idNumber: '', front: null, back: null })
 // 头像地址失效时回落汉字圆标，避免破图图标与 alt 文案溢出。
 const broken = ref(false)
 // 账号安全：修改密码与换绑手机，各自一个模态层，逻辑与创作者端一致。
@@ -178,13 +210,14 @@ async function load() {
     broken.value = false
     realName.value = await api.value.getRealName().catch(() => null)
     editing.value = false
+    profileError.value = ''
     resetIdentity()
   } catch (failure) {
     if (!handleError(failure, { silent: true })) error.value = failure.message || '加载个人资料失败'
   } finally { pending.value = false }
 }
 function resetIdentity() {
-  Object.assign(identity, { realName: '', idNumber: '' })
+  Object.assign(identity, { realName: '', idNumber: '', front: null, back: null })
   identityError.value = ''
 }
 async function pickAvatar(file) {
@@ -196,45 +229,57 @@ async function pickAvatar(file) {
     const result = await api.value.uploadAvatar(file)
     if (!result?.url) throw new Error('头像上传响应缺少图片地址，请重试')
     await api.value.saveProfile({ nickname: profile.value.nickname, avatar: result.url, bio: profile.value.bio || '' })
-    form.avatar = result.url
     profile.value.avatar = result.url
+    form.avatar = result.url
     broken.value = false
     Object.assign(user.value, { avatar: result.url })
+    profileError.value = ''
     ElMessage.success('头像已更新')
     emit('saved')
-  } catch (failure) { handleError(failure) } finally { uploading.value = false }
+  } catch (failure) { profileError.value = failure.message || '头像更新失败，请稍后重试' } finally { uploading.value = false }
 }
 function cancelEdit() {
   form.nickname = profile.value?.nickname || ''
   form.bio = profile.value?.bio || ''
+  profileError.value = ''
   editing.value = false
 }
 async function save() {
   if (saving.value) return
   const nickname = form.nickname.trim()
-  if (!nickname) { ElMessage.warning('请输入昵称'); return }
+  profileError.value = ''
+  if (!nickname) { profileError.value = '请输入笔名 / 昵称'; return }
   saving.value = true
   try {
     await api.value.saveProfile({ nickname, avatar: form.avatar, bio: form.bio.trim() })
     Object.assign(user.value, { nickname, avatar: form.avatar })
     ElMessage.success('个人资料已更新')
     emit('saved')
+    // 保存成功后回到只读态并重新拉一次，展示服务端归一后的昵称与简介。
+    editing.value = false
     await load()
-  } catch (failure) { handleError(failure) } finally { saving.value = false }
+  } catch (failure) { profileError.value = failure.message || '保存失败，请稍后重试' } finally { saving.value = false }
 }
 async function verify() {
   if (verifying.value) return
   identityError.value = ''
   if (identity.realName.trim().length < 2) { identityError.value = '请输入真实姓名'; return }
   if (!/^\d{17}[0-9Xx]$/.test(identity.idNumber.trim())) { identityError.value = '请输入有效的 18 位身份证号'; return }
+  if (!identity.front || !identity.back) { identityError.value = '请上传身份证正反面图片'; return }
+  if (identity.front.size > 5 * 1024 * 1024 || identity.back.size > 5 * 1024 * 1024) {
+    identityError.value = '身份证图片不能超过 5 MB'; return
+  }
   verifying.value = true
   try {
-    realName.value = await api.value.submitRealName({
-      realName: identity.realName.trim(),
-      idNumber: identity.idNumber.trim()
-    }, realNameStatusValue.value === 'REJECTED')
+    // 实名材料走 multipart：realName / idNumber / front / back，与 App、创作者端同一接口。
+    const body = new FormData()
+    body.append('realName', identity.realName.trim())
+    body.append('idNumber', identity.idNumber.trim())
+    body.append('front', identity.front, identity.front.name)
+    body.append('back', identity.back, identity.back.name)
+    realName.value = await api.value.submitRealName(body, realNameStatusValue.value === 'REJECTED')
     resetIdentity()
-    ElMessage.success('实名核验已完成')
+    ElMessage.success('实名申请已提交')
     emit('saved')
   } catch (failure) {
     identityError.value = failure.message || '提交失败，请稍后重试'
@@ -324,6 +369,15 @@ onUnmounted(() => { clearInterval(countdownTimer); stepUpToken.value = ''; phone
 .avatar-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .avatar-picker:focus-within { outline: 2px solid currentColor; outline-offset: 3px; }
 .avatar-picker.disabled { cursor: wait; }
-.profile-details-head, .profile-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.profile-actions { justify-content: flex-start; margin-top: 18px; }
+/* 与创作者端同一版式：分组标题+右侧操作，内容放在浅底卡片里；卡片间留出分组间距。 */
+.profile-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 28px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.profile-section-head h3 { margin: 0; font-size: 16px; }
+.profile-count { color: var(--muted); font-size: 12px; }
+.profile-card { margin-top: 12px; padding: 16px 18px; background: var(--soft); border-radius: 6px; }
+.profile-card > :first-child { margin-top: 0; }
+.profile-card > .rights-note + .rights-note { margin-top: 8px; }
+.profile-card .field { margin-top: 14px; }
+.profile-card .field:first-child { margin-top: 0; }
+.profile-actions { display: flex; gap: 12px; margin-top: 18px; }
+.profile-actions .btn { padding: 9px 15px; }
 </style>

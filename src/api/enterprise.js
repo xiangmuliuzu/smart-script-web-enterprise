@@ -139,6 +139,7 @@ export const uploadAvatar = file => {
 }
 export const getRealName = () => data('/api/v1/users/me/real-name')
 // 驳回后重提走 /resubmit；两条路径共享同一状态机（PENDING/APPROVED 均返回 409）。
+// form 为 FormData 时按 multipart 直传（实名契约要求身份证正反面图片），普通对象仍走 JSON。
 export const submitRealName = (form, resubmit = false) => data('/api/v1/users/me/real-name' + (resubmit ? '/resubmit' : ''), { method: 'POST', body: form })
 /* ---------------- 账号安全 ---------------- */
 // 与创作者端同端点：改密后需重新登录（无状态令牌不会自动失效）。
