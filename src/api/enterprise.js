@@ -73,6 +73,7 @@ export const createSeal = form => data('/api/v1/content/copyright-seals', {
 })
 export const updateSeal = (sealId, form) => data(sealPath(sealId), { method: 'PUT', body: form })
 export const disableSeal = sealId => data(sealPath(sealId) + '/disable', { method: 'PUT' })
+export const enableSeal = sealId => data(sealPath(sealId) + '/enable', { method: 'PUT' })
 export const deleteSeal = sealId => data(sealPath(sealId), { method: 'DELETE' })
 // 印章图 / 审核材料：走 content/upload，type=material（与 App 一致）。
 export const upload = (file, purpose = 'seal') => {
