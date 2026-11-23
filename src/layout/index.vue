@@ -244,7 +244,7 @@ async function load() {
     user.value = result.user
     refreshUnread()
     // 待处理询盘数与实名认证状态用于顶栏标注，失败时按未确认显示。
-    api.value.listInquiries({ pageSize: 50 }).then(result => { if (current === generation) unread.inquiries = result.list.length }).catch(() => {})
+    api.value.listInquiries({ status: 'pending', pageSize: 1 }).then(result => { if (current === generation) unread.inquiries = result.total }).catch(() => {})
     api.value.getRealName().then(value => { if (current === generation) realName.value = value }).catch(() => {})
   } catch (failure) {
     if (current !== generation) return

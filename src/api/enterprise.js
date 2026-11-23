@@ -29,6 +29,8 @@ export async function listOrders({ status, keyword, pageNum = 1, pageSize = 10 }
 // 发起支付宝沙箱付款，并由服务端核验支付结果。refresh=true 时换新商户单号重出收款码（旧码失效后用）。
 export const payOrder = (orderId, refresh = false) => data('/api/v1/trade/order/' + id(orderId) + '/pay' + (refresh ? '?refresh=true' : ''), { method: 'POST' })
 export const confirmSandboxPayment = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay/confirm', { method: 'POST' })
+// 测试直付：跳过支付宝沙箱，订单直接按已付款进入交割（与版权零元直付同性质）。
+export const directPayOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay/direct-pay', { method: 'POST' })
 // 买方确认收货：delivering → completed，写入作者收益。
 export const completeOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/complete', { method: 'POST' })
 // 取消订单：仅 confirmed 可取消，买卖双方任一方可发起；reason 选填，走 query 参数。
@@ -100,7 +102,7 @@ export async function listMessages({ pageNum = 1, pageSize = 50, type, includeAn
   return { total: Number(result?.total || result?.length || 0), list: asList(result).map(item => ({ ...item, isRead: item.read, content: item.summary, createTime: item.createdAt })) }
 }
 export const getMessage = messageId => data('/api/v1/messages/' + id(messageId))
-export const unreadCount = async () => Number((await data('/api/v1/messages/unread-count'))?.total || 0)
+export const unreadCount = async () => Number((await data('/api/v1/messages/unread-count?' + qs({ portalRole: 'BUYER' })))?.total || 0)
 export const readMessage = messageId => data('/api/v1/messages/' + id(messageId) + '/read', { method: 'PUT' })
 export const readAllMessages = () => data('/api/v1/messages/read-all', { method: 'PUT' })
 
@@ -112,7 +114,8 @@ export const listChatMessages = async sessionId => asList(await data('/api/v1/us
 export const sendChatMessage = (sessionId, content, quoteMessageId) => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages', { method: 'POST', body: { msgType: 'TEXT', content, ...(quoteMessageId ? { quoteMessageId } : {}) } })
 export const recallChatMessage = (sessionId, messageId) => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/messages/' + id(messageId) + '/recall', { method: 'PUT' })
 export const readChatSession = sessionId => data('/api/v1/users/me/chat/sessions/' + id(sessionId) + '/read', { method: 'PUT' })
-export const chatUnreadCount = async () => Number((await data('/api/v1/users/me/chat/unread-count'))?.chatUnread || 0)
+// 与沟通页同口径：客服徽标只统计 ADMIN 会话未读，不含交易会话。
+export const chatUnreadCount = async () => Number((await data('/api/v1/users/me/chat/unread-count?' + qs({ sessionType: 'ADMIN' })))?.chatUnread || 0)
 // 发起与平台管理员的沟通会话（GENERAL 平台沟通）；沟通页只列 ADMIN 会话，空列表时靠此按钮破局。
 export const openPlatformChat = () => data('/api/v1/users/me/chat/sessions', { method: 'POST', body: { businessType: 'GENERAL', businessName: '平台沟通' } })
 
@@ -138,6 +141,7 @@ export const uploadAvatar = file => {
 }
 export const getRealName = () => data('/api/v1/users/me/real-name')
 // 驳回后重提走 /resubmit；两条路径共享同一状态机（PENDING/APPROVED 均返回 409）。
+// form 为 FormData 时按 multipart 直传（实名契约要求身份证正反面图片），普通对象仍走 JSON。
 export const submitRealName = (form, resubmit = false) => data('/api/v1/users/me/real-name' + (resubmit ? '/resubmit' : ''), { method: 'POST', body: form })
 /* ---------------- 账号安全 ---------------- */
 // 与创作者端同端点：改密后需重新登录（无状态令牌不会自动失效）。
