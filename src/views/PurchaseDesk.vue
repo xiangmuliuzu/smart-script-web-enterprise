@@ -128,14 +128,17 @@ const genres = computed(() => [...new Set(Object.values(works.value).map(w => w.
 // 卡片只写入能从接口确证的字段；缺失的按占位显示，不用演示数据补。
 function buildCards() {
   const cards = []
+  const orderedInquiries = new Set()
   for (const order of orders.value) {
+    if (['cancelled', 'refunded'].includes(order.status)) continue
+    if (order.inquiryId != null) orderedInquiries.add(String(order.inquiryId))
     const work = works.value[order.workId] || {}
     const amount = money(order.amount)
     cards.push({
       key: 'order-' + order.orderId, workId: order.workId, title: order.workTitle || '作品 #' + order.workId,
       mark: avatarText(order.workTitle), cover: avatarUrl(order.workCover || work.cover),
       genre: work.genreName || '题材待确认', auth: order.licenseType ? (order.licenseType === 'exclusive' ? '独家' : '非独家') : '未指定',
-      status: '已购买', date: (order.createdAt || '').slice(0, 10), source: 'order', id: order.orderId,
+      status: order.status === 'completed' ? '已购买' : '购买中', date: (order.createdAt || '').slice(0, 10), source: 'order', id: order.orderId,
       licenseType: order.licenseType, amount: order.amount, order, orderStatus: order.status,
       hasQuote: quotes.value.some(q => String(q.inquiryId) === String(order.inquiryId)),
       workType: [work.genreName, licenseLabel(order.licenseType)].filter(Boolean).join(' · '),
@@ -145,6 +148,7 @@ function buildCards() {
     })
   }
   for (const inquiry of inquiries.value) {
+    if (orderedInquiries.has(String(inquiry.inquiryId)) || ['closed', 'rejected'].includes(inquiry.status)) continue
     const work = works.value[inquiry.workId] || {}
     const quote = quotes.value.find(q => String(q.inquiryId) === String(inquiry.inquiryId) && q.status !== 'rejected')
     cards.push({

@@ -22,11 +22,14 @@
       <section>
         <p class="market-eyebrow">STORY OVERVIEW</p>
         <h2>{{ work.title }}</h2>
+        <p v-if="work.copyrightRegistrationStatus" class="detail-byline">
+          版权登记状态：{{ work.copyrightRegistrationStatus === 'registered' ? '已登记' : '未登记' }}
+        </p>
         <h3>作品简介</h3>
         <p class="market-synopsis">{{ work.summary || '作者暂未填写简介。' }}</p>
         <div class="chapter-heading">
           <h3>章节目录</h3>
-          <span>试读范围由作者与平台配置</span>
+          <span>{{ hasFullAccess ? '已获阅读权限' : '试读范围由作者与平台配置' }}</span>
         </div>
         <LoadState v-if="chaptersError" :error="chaptersError" :retry="load" />
         <div v-else class="market-chapters">
@@ -37,36 +40,35 @@
             @click="readChapter(chapter)"
           >
             <span>{{ chapter.chapterTitle || `第 ${chapter.chapterNo} 章` }}</span
-            ><small>{{ canReadChapter(chapter) ? '试读 →' : '暂未开放' }}</small>
+            ><small>{{ canReadChapter(chapter) ? (hasFullAccess ? '阅读 →' : '试读 →') : '暂未开放' }}</small>
           </button>
-          <p v-if="!chapters.length">该作品暂未开放章节试读。</p>
+          <p v-if="!chapters.length">{{ hasFullAccess ? '暂无可阅读的章节。' : '该作品暂未开放章节试读。' }}</p>
         </div>
         <div class="storyboard-heading">
           <h3>分镜目录</h3>
-          <span>审核通过后，按关联章节的试读权限开放</span>
         </div>
         <LoadState v-if="storyboardsError" :error="storyboardsError" :retry="loadStoryboards" />
         <div v-else class="market-storyboards">
           <button
             v-for="storyboard in storyboards"
             :key="storyboard.storyboardId"
-            :disabled="storyboard.readable === false"
+            :disabled="storyboard.readable !== true"
             @click="readStoryboard(storyboard)"
           >
             <span>
               <strong>{{ storyboard.chapterTitle || `第 ${storyboard.chapterNo || '?'} 章` }}</strong>
-              <small>{{ storyboard.wordCount || 0 }} 字 · 审核通过</small>
+              <small v-if="storyboard.wordCount > 0">{{ storyboard.wordCount }} 字</small>
             </span>
-            <small>{{ storyboard.readable === false ? '暂未开放' : '分镜试读 →' }}</small>
+            <small>{{ storyboardReadLabel(storyboard) }}{{ storyboard.readable === true ? ' →' : '' }}</small>
           </button>
-          <p v-if="!storyboards.length">该作品暂未开放审核通过的分镜。</p>
+          <p v-if="!storyboards.length">暂无可浏览的分镜。</p>
         </div>
       </section>
     </div>
   </el-dialog>
   <el-dialog
     v-model="storyboardReaderOpen"
-    :title="selectedStoryboard?.chapterTitle || '分镜试读'"
+    :title="selectedStoryboard?.chapterTitle || '分镜阅读'"
     width="min(860px, 94vw)"
     align-center
     append-to-body
@@ -74,15 +76,15 @@
     destroy-on-close
   >
     <div class="market-reader storyboard-reader">
-      <p class="reader-kicker">{{ work?.title }} · 分镜试读</p>
+      <p class="reader-kicker">{{ work?.title }} · {{ selectedStoryboard?.trialEnabled === true ? '分镜试读' : '分镜阅读' }}</p>
       <LoadState v-if="storyboardReading || storyboardReadError" :pending="storyboardReading" :error="storyboardReadError" />
       <article v-else v-html="safeStoryboardContent"></article>
-      <p class="reader-limit">以上为服务器允许展示的分镜试读内容，完整内容按授权与交易结果开放。</p>
+      <p v-if="selectedStoryboard?.trialEnabled === true" class="reader-limit">以上为开放试读的分镜内容。</p>
     </div>
   </el-dialog>
   <el-dialog
     v-model="readerOpen"
-    :title="selectedChapter?.chapterTitle || '章节试读'"
+    :title="selectedChapter?.chapterTitle || (hasFullAccess ? '章节阅读' : '章节试读')"
     width="min(860px, 94vw)"
     align-center
     append-to-body
@@ -98,8 +100,8 @@
         :retry="() => readChapter(selectedChapter)"
       />
       <article v-else v-html="safeContent"></article>
-      <p class="reader-limit">以上为服务器允许展示的章节内容，完整作品按授权与交易结果开放。</p>
-      <nav class="chapter-reader-nav" aria-label="试读章节翻页">
+      <p v-if="!hasFullAccess" class="reader-limit">当前仅展示开放试读的章节内容。</p>
+      <nav class="chapter-reader-nav" aria-label="章节翻页">
         <button
           type="button"
           :disabled="reading || !previousChapter"
@@ -187,7 +189,7 @@ import DOMPurify from 'dompurify'
 import MarketCover from './MarketCover.vue'
 import LoadState from './LoadState.vue'
 import { usePortal } from '../utils/portal.js'
-import { asList } from '../utils/enterprise.js'
+import { asList, storyboardReadLabel } from '../utils/enterprise.js'
 import { requireLogin, inquiryPayload, workGenre } from '../utils/market.js'
 const props = defineProps({ workId: [Number, String], initialAction: String })
 const emit = defineEmits(['close', 'created'])
@@ -195,6 +197,7 @@ const { api, user } = usePortal()
 const router = useRouter()
 const work = ref(null),
   chapters = ref([]),
+  hasFullAccess = ref(false),
   storyboards = ref([]),
   loading = ref(false),
   error = ref(''),
@@ -268,6 +271,7 @@ async function load() {
   chaptersError.value = ''
   storyboardsError.value = ''
   chapters.value = []
+  hasFullAccess.value = false
   storyboards.value = []
   work.value = null
   const id = props.workId
@@ -276,8 +280,11 @@ async function load() {
     if (run !== loadRun) return
     work.value = detail
     try {
-      const list = await api.value.listChapters(id)
-      if (run === loadRun) chapters.value = asList(list)
+      const result = await api.value.listChapters(id)
+      if (run === loadRun) {
+        hasFullAccess.value = result?.unlocked === true || result?.accessScope === 'full'
+        chapters.value = asList(result)
+      }
     } catch (failure) {
       if (run === loadRun) chaptersError.value = failure.message
     }
@@ -316,7 +323,7 @@ async function readChapter(chapter) {
     const result = await api.value.getChapter(chapter.chapterId)
     if (run !== readRun) return
     if (result?.readable === false) {
-      readError.value = '该章节暂未开放试读'
+      readError.value = '当前账号无法阅读此章节。'
       return
     }
     const text = String(result?.content || '')
@@ -330,7 +337,7 @@ async function readChapter(chapter) {
   }
 }
 function readStoryboard(storyboard) {
-  if (!storyboard?.storyboardId || storyboard.readable === false) return
+  if (!storyboard?.storyboardId || storyboard.readable !== true) return
   selectedStoryboard.value = storyboard
   storyboardReadError.value = ''
   storyboardContent.value = ''
@@ -501,10 +508,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 16px;
   margin-top: 28px;
-}
-.storyboard-heading span {
-  font-size: 12px;
-  color: #716b61;
 }
 .market-storyboards {
   border-top: 1px solid #ded9ce;

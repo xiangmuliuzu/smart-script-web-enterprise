@@ -16,6 +16,7 @@ import {
   getWorkCopyrightStatus
 } from '../src/api/enterprise.js'
 import { safeRedirect } from '../src/auth.js'
+import { storyboardReadLabel } from '../src/utils/enterprise.js'
 let token = ''
 globalThis.localStorage = {
   getItem: () => token,
@@ -23,6 +24,13 @@ globalThis.localStorage = {
     token = ''
   }
 }
+test('public storyboard labels describe reader access independently from review status', () => {
+  assert.equal(storyboardReadLabel({ status: 'approved', readable: true, trialEnabled: true }), '分镜试读')
+  assert.equal(storyboardReadLabel({ status: 'approved', readable: true, trialEnabled: false }), '阅读分镜')
+  assert.equal(storyboardReadLabel({ status: 'approved', readable: false }), '暂未开放')
+  assert.equal(storyboardReadLabel({ status: 'approved' }), '暂未开放')
+})
+
 test('inquiry budgets convert yuan exactly, preserve optionality and reject invalid values', () => {
   assert.equal(budgetToFen('1.01'), 101)
   assert.equal(budgetToFen('0.29'), 29)

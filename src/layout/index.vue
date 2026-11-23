@@ -75,7 +75,7 @@
       <WorkDetailPage ref="detail" :open="!!activeCard" :work-id="activeCard?.workId" :purchase="activeCard" :status="activeCard?.status || '购买中'"
                       @close="activeCard = null" @preview="previewChapter" @contact="contactAuthor" @open-contract="openTrade('contract')" />
       <ChapterReader :open="!!reader" :index="reader?.index || 0" :total="readerChapters.length" :chapter-id="reader?.chapterId"
-                     :title="reader?.title || ''" :work-title="activeCard?.title || ''" :author="detail?.work?.authorName || ''"
+                     :title="reader?.title || ''" :work-title="activeCard?.title || ''" :author="detail?.work?.authorName || ''" :full-access="detail?.hasFullAccess"
                      @close="reader = null" @step="stepChapter" />
       <MessagePage ref="messages" :open="messageOpen" @close="messageOpen = false" @read="refreshUnread" @open-trade="openTradeFrom" />
       <ConversationPage ref="conversation" :open="conversationOpen" :session-id="conversationSession" @close="conversationOpen = false" @read="refreshUnread" />
@@ -169,7 +169,7 @@ async function goView(path) {
   closeAll()
   if (route.path !== path) router.push(path)
 }
-watch(tradeOpen, visible => { if (!visible) desk.value?.loadTodo?.() })
+watch(tradeOpen, visible => { if (!visible) { desk.value?.load?.(); desk.value?.loadTodo?.() } })
 // 换头像后要重新允许加载。
 watch(() => user.value?.avatar, () => { avatarBroken.value = false })
 
@@ -203,9 +203,10 @@ function openTradeFrom(payload) {
 // 作品详情页里的「章节预览」：用已加载的章节列表定位当前章。
 function previewChapter(index) {
   const chapters = detail.value?.chapters || []
-  readerChapters.value = chapters
   const chapter = chapters[index]
-  reader.value = { index, chapterId: chapter?.chapterId, title: chapter?.chapterTitle || `第 ${index + 1} 章` }
+  if (!chapter) return
+  readerChapters.value = chapters
+  reader.value = { index, chapterId: chapter.chapterId, title: chapter.chapterTitle || `第 ${chapter.chapterNo || index + 1} 章` }
 }
 function stepChapter(index) { previewChapter(index) }
 async function contactAuthor() {

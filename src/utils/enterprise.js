@@ -226,3 +226,7 @@ export const episodeText = work => Number(work?.episodeCount || 0) > 0 ? Number(
 // 未开放服务统一口径：后端尚无该域的用户接口，不伪造成功状态。
 export const NOT_OPEN = '服务尚未开放'
 export const NOT_OPEN_NOTE = '该服务尚未对用户开放，可在「消息 → 联系平台运营」咨询进度。'
+export function storyboardReadLabel(storyboard) {
+  if (storyboard?.readable !== true) return '暂未开放'
+  return storyboard.trialEnabled === true ? '分镜试读' : '阅读分镜'
+}
