@@ -29,6 +29,8 @@ export async function listOrders({ status, keyword, pageNum = 1, pageSize = 10 }
 // 发起支付宝沙箱付款，并由服务端核验支付结果。refresh=true 时换新商户单号重出收款码（旧码失效后用）。
 export const payOrder = (orderId, refresh = false) => data('/api/v1/trade/order/' + id(orderId) + '/pay' + (refresh ? '?refresh=true' : ''), { method: 'POST' })
 export const confirmSandboxPayment = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay/confirm', { method: 'POST' })
+// 测试直付：跳过支付宝沙箱，订单直接按已付款进入交割（与版权零元直付同性质）。
+export const directPayOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay/direct-pay', { method: 'POST' })
 // 买方确认收货：delivering → completed，写入作者收益。
 export const completeOrder = orderId => data('/api/v1/trade/order/' + id(orderId) + '/complete', { method: 'POST' })
 // 取消订单：仅 confirmed 可取消，买卖双方任一方可发起；reason 选填，走 query 参数。

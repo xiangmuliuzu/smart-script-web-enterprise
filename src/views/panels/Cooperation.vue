@@ -138,7 +138,7 @@
               <span class="cost">创建于 {{ dateText(o.createdAt) }}</span>
               <div class="foot-actions">
                 <button v-if="!isTerminalOrder(o) && o.contractId" class="btn sm quiet" @click="openOrderContract(o)">查看合同</button>
-                <button v-if="o.status === 'confirmed' || o.status === 'paying'" class="btn sm ghost" @click="doCancelOrder(o)">取消订单</button>
+                <button v-if="isBuyerOfOrder(o) && (o.status === 'confirmed' || o.status === 'paying')" class="btn sm ghost" @click="doCancelOrder(o)">取消订单</button>
                 <button v-if="isBuyerOfOrder(o) && o.status === 'paying'" class="btn sm" @click="doPayOrder(o)">付款</button>
                 <button v-if="isBuyerOfOrder(o) && o.status === 'delivering'" class="btn sm" @click="doCompleteOrder(o)">确认收货</button>
               </div>
@@ -167,6 +167,7 @@
         <div><button type="button" class="btn" :disabled="paymentRefreshing" @click="refreshPaymentQr">{{ paymentRefreshing ? '生成新码中…' : '刷新二维码' }}</button></div>
         <p>{{ paymentMessage || '等待支付结果…扫码完成后会自动确认' }}</p>
         <button type="button" class="btn" :disabled="paymentChecking" @click="checkSandboxPayment">{{ paymentChecking ? '查询中…' : '我已完成支付' }}</button>
+        <div><button type="button" class="btn ghost" :disabled="paymentDirectBusy" @click="directPayPayment">跳过支付（测试直付）</button></div>
       </div>
     </el-dialog>
     <ContractSignDialog v-model="orderSignVisible" :contract="orderContract" :user-id="userId" @signed="reloadOrderContract" />
@@ -560,6 +561,7 @@ const paymentQr = ref('')
 const paymentOrder = ref(null)
 const paymentChecking = ref(false)
 const paymentRefreshing = ref(false)
+const paymentDirectBusy = ref(false)
 const paymentMessage = ref('')
 async function doPayOrder(o, { refresh = false } = {}) {
   if (!refresh) {
@@ -616,11 +618,26 @@ async function checkSandboxPayment({ silent = false } = {}) {
   finally { if (!silent) paymentChecking.value = false }
 }
 
+// 测试直付：沙箱不可用时跳过支付宝，订单直接按已付款进入交割（与版权零元直付同性质）
+async function directPayPayment() {
+  if (paymentDirectBusy.value || !paymentOrder.value) return
+  try { await ElMessageBox.confirm('测试直付：跳过支付宝沙箱，本订单将直接按已付款进入交割，视同付款完成且不可撤销。', '跳过支付', { type: 'warning', confirmButtonText: '确认直付', cancelButtonText: '再想想' }) } catch { return }
+  paymentDirectBusy.value = true
+  try {
+    await api.value.directPayOrder(paymentOrder.value.orderId)
+    stopPaymentPolling()
+    paymentVisible.value = false
+    ElMessage.success('已按测试直付完成付款，订单进入交割')
+    await loadOrders()
+  } catch (e) { paymentMessage.value = e.message || '直付失败，请稍后重试' }
+  finally { paymentDirectBusy.value = false }
+}
+
 async function doCompleteOrder(o) {
   try { await ElMessageBox.confirm('确认收货后订单完成，平台将向卖方结算。确定吗？', '确认收货', { type: 'warning' }); await api.value.completeOrder(o.orderId); ElMessage.success('已确认收货'); await loadOrders() } catch (e) { if (e !== 'cancel') await handleError(e) }
 }
 
-// 取消订单：签署完成前（confirmed）与尚未付款（paying）均可取消，买卖双方任一方；付款后不可取消
+// 取消订单：仅买方可发起，付款前（confirmed 或未付款 paying）有效；付款后不可取消
 async function doCancelOrder(o) {
   let reason = ''
   try {
