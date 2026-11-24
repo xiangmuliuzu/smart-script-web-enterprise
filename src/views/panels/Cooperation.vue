@@ -53,6 +53,7 @@
             <template v-if="chatSessionId">
               <div class="negotiation-bar" :class="'neg-bar-' + negTone">
                 <span class="neg-amount">{{ negAmountYuan }}</span>
+                <button v-if="quoteAccepted" class="btn sm quiet neg-order-btn" @click="openOrderBySession">查看订单</button>
                 <span class="neg-source cost">{{ negSource }}</span>
                 <button v-if="canAcceptLatest" class="btn sm" @click="doAcceptLatestQuote">接受</button>
                 <span v-else-if="latestQuote && ['pending','pending_seller'].includes(latestQuote.status)" class="cost" style="font-size:12px">等待对方确认</span>
@@ -64,7 +65,8 @@
                 <template v-if="!chatLoading">
                   <p v-if="!chatMessages.length" class="cost" style="text-align:center">暂无消息，开始沟通吧</p>
                   <div v-for="msg in chatMessages" :key="msg.msgId || msg.messageId">
-                    <div v-if="isQuoteSysMsg(msg)" class="quote-sys-msg" :class="'qsys-' + parseQuoteSysMsg(msg.content).tag">{{ parseQuoteSysMsg(msg.content).label }}</div>
+                    <div v-if="orderCardOf(msg)" class="order-sys-msg" @click="goToOrder(orderCardOf(msg).orderId)">订单已生成<span v-if="orderCardOf(msg).orderNo"> · {{ orderCardOf(msg).orderNo }}</span> · 点击查看</div>
+                    <div v-else-if="isQuoteSysMsg(msg)" class="quote-sys-msg" :class="'qsys-' + parseQuoteSysMsg(msg.content).tag">{{ parseQuoteSysMsg(msg.content).label }}</div>
                     <div v-else-if="msg.recalled" class="recalled-msg">{{ Number(msg.senderId) === userId ? '你撤回了一条消息' : '对方撤回了一条消息' }}</div>
                     <div v-else class="chat-bubble" :class="Number(msg.senderId) === userId ? 'me' : 'them'">
                       <div v-if="Number(msg.senderId) !== userId" class="bubble-name cost">{{ msg.senderName || '用户' + msg.senderId }}</div>
@@ -160,13 +162,14 @@
         <button v-if="canSignOrderContract" class="btn sm" @click="orderSignVisible = true">签署合同</button>
       </div>
     </PortalLayer>
-    <el-dialog v-model="paymentVisible" title="支付宝沙箱支付" width="360px" append-to-body>
+    <el-dialog v-model="paymentVisible" :title="paymentSandboxUnavailable ? '订单支付' : '支付宝沙箱支付'" width="360px" append-to-body>
       <div style="text-align:center">
-        <p>测试支付，不会产生真实资金。请使用支付宝沙箱钱包扫码。</p>
+        <p v-if="paymentSandboxUnavailable">支付宝沙箱暂不可用，可点击下方「跳过支付」继续交易流程。</p>
+        <p v-else>测试支付，不会产生真实资金。请使用支付宝沙箱钱包扫码。</p>
         <img v-if="paymentQr" :src="paymentQr" alt="支付宝沙箱支付二维码" width="220" height="220" />
-        <div><button type="button" class="btn" :disabled="paymentRefreshing" @click="refreshPaymentQr">{{ paymentRefreshing ? '生成新码中…' : '刷新二维码' }}</button></div>
-        <p>{{ paymentMessage || '等待支付结果…扫码完成后会自动确认' }}</p>
-        <button type="button" class="btn" :disabled="paymentChecking" @click="checkSandboxPayment">{{ paymentChecking ? '查询中…' : '我已完成支付' }}</button>
+        <div v-if="!paymentSandboxUnavailable"><button type="button" class="btn" :disabled="paymentRefreshing" @click="refreshPaymentQr">{{ paymentRefreshing ? '生成新码中…' : '刷新二维码' }}</button></div>
+        <p>{{ paymentMessage || (paymentSandboxUnavailable ? '' : '等待支付结果…扫码完成后会自动确认') }}</p>
+        <button v-if="!paymentSandboxUnavailable" type="button" class="btn" :disabled="paymentChecking" @click="checkSandboxPayment">{{ paymentChecking ? '查询中…' : '我已完成支付' }}</button>
         <div><button type="button" class="btn ghost" :disabled="paymentDirectBusy" @click="directPayPayment">跳过支付（测试直付）</button></div>
       </div>
     </el-dialog>
@@ -261,6 +264,43 @@ async function openSessionForInquiry(inq) {
     const s = sessions.value.find(s => s.inquiryId === inq.inquiryId)
     if (s) await selectSession(s)
   } catch (e) { await handleError(e) }
+}
+
+// ── 订单跳转：接受报价动作、议价栏「查看订单」、消息流 [订单] 卡片共用（复用通知跳转的 flashFocus 定位高亮） ──
+async function goToOrder(orderId) {
+  const id = Number(orderId)
+  if (!id) return
+  applyingFocus.value = true // 抑制 tab watch 的常规加载，由这里统一加载并定位
+  tab.value = 'order'
+  try {
+    orderStatus.value = ''
+    orderKeyword.value = ''
+    orderPageNum.value = 1
+    await loadOrders()
+    flashFocus('order', id)
+  } finally { applyingFocus.value = false }
+}
+
+/** 议价栏按钮：按当前会话的询盘回查订单再跳转 */
+async function openOrderBySession() {
+  const inqId = activeSessionInquiryId.value
+  if (!inqId) return
+  try {
+    const order = await api.value.getOrderByInquiry(inqId)
+    if (order?.orderId) await goToOrder(order.orderId)
+    else ElMessage.warning('尚未查询到关联订单')
+  } catch (e) { await handleError(e) }
+}
+
+/** 解析 [订单]{json} 系统消息载荷；JSON 无效返回 null（回落为普通消息渲染） */
+function orderCardOf(msg) {
+  if (!msg.isSystem && msg.msgType !== 'SYSTEM') return null
+  const c = msg.content || ''
+  if (!c.startsWith('[订单]')) return null
+  try {
+    const p = JSON.parse(c.slice('[订单]'.length))
+    return Number(p?.orderId) ? { orderId: Number(p.orderId), orderNo: p.orderNo || '' } : null
+  } catch { return null }
 }
 
 // ── 会话列表 ──
@@ -530,6 +570,7 @@ async function doAcceptLatestQuote() {
     await loadLatestQuote()
     await loadChatMessages()
     await loadInquiries()
+    if (r?.orderId) await goToOrder(r.orderId)
   } catch (e) { if (e !== 'cancel') await handleError(e) }
 }
 
@@ -562,12 +603,18 @@ const paymentOrder = ref(null)
 const paymentChecking = ref(false)
 const paymentRefreshing = ref(false)
 const paymentDirectBusy = ref(false)
+const paymentSandboxUnavailable = ref(false)
 const paymentMessage = ref('')
 async function doPayOrder(o, { refresh = false } = {}) {
   if (!refresh) {
     // 付款前置提醒：与 APP 端口径一致，交易付款后不支持退款
     try { await ElMessageBox.confirm('请注意：本订单付款成功后不支持退款，请与卖方确认交易内容无误后再谨慎决定是否付款。', '付款确认', { type: 'warning', confirmButtonText: '确认付款', cancelButtonText: '再想想' }) } catch { return }
   }
+  paymentOrder.value = o
+  paymentQr.value = ''
+  paymentSandboxUnavailable.value = false
+  paymentMessage.value = '正在发起支付…'
+  paymentVisible.value = true
   try {
     const result = await api.value.payOrder(o.orderId, refresh)
     if (result?.paid) {
@@ -579,10 +626,18 @@ async function doPayOrder(o, { refresh = false } = {}) {
     }
     if (!result?.sandbox || !result.qrCode) throw new Error('获取沙箱支付二维码失败')
     paymentQr.value = await QRCode.toDataURL(result.qrCode, { width: 220, margin: 2 })
-    paymentOrder.value = o
     paymentMessage.value = ''
-    paymentVisible.value = true
-  } catch (e) { await handleError(e) }
+  } catch (e) {
+    const message = e?.message || '发起支付失败'
+    if (/沙箱.*(未配置|尚未配置|不可用|失败)/.test(message)) {
+      paymentSandboxUnavailable.value = true
+      paymentQr.value = ''
+      paymentMessage.value = '支付宝沙箱暂不可用，请点击「跳过支付（测试直付）」继续。'
+      return
+    }
+    paymentVisible.value = false
+    await handleError(e)
+  }
 }
 async function refreshPaymentQr() {
   if (paymentRefreshing.value || !paymentOrder.value) return
@@ -593,10 +648,10 @@ async function refreshPaymentQr() {
 let paymentTimer = null
 let paymentRotateTimer = null
 function stopPaymentPolling() { if (paymentTimer) { clearInterval(paymentTimer); paymentTimer = null } }
-watch(paymentVisible, visible => {
+watch([paymentVisible, paymentSandboxUnavailable], ([visible, unavailable]) => {
   stopPaymentPolling()
   if (paymentRotateTimer) { clearInterval(paymentRotateTimer); paymentRotateTimer = null }
-  if (visible) {
+  if (visible && !unavailable) {
     paymentTimer = setInterval(() => { checkSandboxPayment({ silent: true }) }, 3000)
     // 沙箱收款码有有效期，弹窗停留超过 5 分钟自动换一张新码（与 APP 同口径）
     paymentRotateTimer = setInterval(() => { refreshPaymentQr() }, 5 * 60 * 1000)
@@ -854,6 +909,10 @@ watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
 .bubble-body time { display: block; font-size: 10px; opacity: .5; margin-top: 4px }
 .chat-bubble.me .bubble-body time { color: rgba(255,255,255,.7) }
 .quote-sys-msg { text-align: center; padding: 6px 16px; margin: 6px auto; border-radius: 10px; font-size: 12px; max-width: 80%; line-height: 1.5 }
+/* 成交订单系统消息卡片：与报价气泡同款居中样式，可点击跳订单 */
+.order-sys-msg { text-align: center; cursor: pointer; padding: 6px 16px; margin: 6px auto; border-radius: 10px; font-size: 12px; max-width: 80%; line-height: 1.5; background: #f0f9eb; border: 1px solid #b3e19d; color: #67c23a }
+.order-sys-msg:hover { box-shadow: 0 1px 4px rgba(103, 194, 58, .35) }
+.neg-order-btn { flex: none }
 .recalled-msg { text-align: center; margin: 6px auto; font-size: 11px; color: #909399 }
 .chat-bubble .bubble-actions { display: none; flex-direction: row; justify-content: flex-end; gap: 4px; margin-top: 2px }
 .chat-bubble:hover .bubble-actions { display: flex }

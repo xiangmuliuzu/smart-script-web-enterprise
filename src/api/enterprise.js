@@ -26,6 +26,8 @@ export async function listOrders({ status, keyword, pageNum = 1, pageSize = 10 }
   const result = await data('/api/v1/trade/order/list?' + qs({ role: 'buyer', status, keyword, pageNum, pageSize }))
   return { total: Number(result?.total || 0), list: asList(result) }
 }
+// 按询盘回查关联订单（会话页「查看订单」跳转用），无订单时返回 null
+export const getOrderByInquiry = inquiryId => data('/api/v1/trade/order/by-inquiry/' + id(inquiryId))
 // 发起支付宝沙箱付款，并由服务端核验支付结果。refresh=true 时换新商户单号重出收款码（旧码失效后用）。
 export const payOrder = (orderId, refresh = false) => data('/api/v1/trade/order/' + id(orderId) + '/pay' + (refresh ? '?refresh=true' : ''), { method: 'POST' })
 export const confirmSandboxPayment = orderId => data('/api/v1/trade/order/' + id(orderId) + '/pay/confirm', { method: 'POST' })
