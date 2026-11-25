@@ -71,9 +71,14 @@
         <router-view v-slot="{ Component }"><component :is="Component" ref="desk" @inquiry-created="onInquiryCreated" @open-work="openWork" @open-trade="openTrade" @open-order="id => openTradeFrom({ tab: 'order', bizId: id })" /></router-view>
       </main>
 
+      <SourcingAgentBubble v-if="currentView === 'home'" :user="user"
+        @require-login="router.push({ path: '/login', query: { redirect: route.fullPath } })"
+        @open-work="openWork" @inquire-work="openAgentInquiry" @open-platform-chat="openConversationPage" />
+
       <!-- 原型最终态的浮层：作品详情页 + 章节阅读器 + 消息页 + 沟通页 + 交易抽屉 + 两个抽屉 + 订单/合同详情 -->
       <template v-if="user">
       <WorkDetailPage ref="detail" :open="!!activeCard" :work-id="activeCard?.workId" :purchase="activeCard" :status="activeCard?.status || '购买中'"
+                      :class="{ 'agent-market-detail': activeCard?.status === '市场作品' }"
                       @close="activeCard = null" @preview="previewChapter" @contact="contactAuthor" @open-contract="openTrade('contract')" />
       <ChapterReader :open="!!reader" :index="reader?.index || 0" :total="readerChapters.length" :chapter-id="reader?.chapterId"
                      :title="reader?.title || ''" :work-title="activeCard?.title || ''" :author="detail?.work?.authorName || ''" :full-access="detail?.hasFullAccess"
@@ -113,6 +118,7 @@ import SealPanel from '../views/panels/SealPanel.vue'
 import PortalLayer from '../components/PortalLayer.vue'
 import ProfileDrawer from '../components/ProfileDrawer.vue'
 import FeedbackDrawer from '../components/FeedbackDrawer.vue'
+import SourcingAgentBubble from '../components/agent/SourcingAgentBubble.vue'
 import { getInfo, getToken, clearSession, isAuthFailure, logout } from '../auth.js'
 import { requireLogin } from '../utils/market.js'
 import { portalKey } from '../utils/portal.js'
@@ -182,6 +188,10 @@ watch(() => user.value?.avatar, () => { avatarBroken.value = false })
 
 function closeAll() { messageOpen.value = false; conversationOpen.value = false; tradeOpen.value = false; copyrightOpen.value = false; sealOpen.value = false; profileOpen.value = false; feedbackOpen.value = false; activeCard.value = null; reader.value = null }
 function openWork(card) { activeCard.value = card || null }
+function openAgentInquiry(work) {
+  if (work?.workId == null) return
+  router.replace({ path: '/', query: { ...route.query, workId: String(work.workId), action: 'inquiry' } })
+}
 async function openMessagePage() {
   if (tradeOpen.value || copyrightOpen.value || sealOpen.value) {
     try { await ElMessageBox.confirm('当前正在查看交易信息，是否关闭并进入消息？', '进入消息', { confirmButtonText: '进入消息', cancelButtonText: '取消' }) }
@@ -328,4 +338,6 @@ provide(portalKey, { api, user, auth, handleError, refreshUnread, unread, openTr
 
 <style scoped>
 .portal-main.home-main{padding:0}.guest-login{font-size:15px;padding:11px 24px}.topbar .nav{flex-shrink:0}.topbar .nav button{white-space:nowrap}
+.agent-market-detail :deep(.work-detail-columns) { grid-template-columns: minmax(0, 1fr); }
+.agent-market-detail :deep(.work-detail-columns > aside) { display: none; }
 </style>
