@@ -7,6 +7,7 @@
         <nav class="nav">
           <button data-view="home" :data-current="currentView === 'home' ? 'true' : 'false'" type="button" @click="goView('/')">首页</button>
           <button data-view="dashboard" :data-current="currentView === 'dashboard' ? 'true' : 'false'" type="button" @click="goView('/dashboard')">采购工作台</button>
+          <button data-view="demand" :data-current="currentView === 'demand' ? 'true' : 'false'" type="button" @click="goView('/demand')">我的任务</button>
         </nav>
         <div class="top-actions">
           <button v-if="!user" class="btn guest-login" type="button" @click="router.push({path: '/login', query: {redirect: route.fullPath}})">请登录 ↗</button>
@@ -161,11 +162,17 @@ const auth = computed(() => ({
 const messageUnread = computed(() => unread.message)
 const chatUnread = computed(() => unread.chat)
 const activeInquiries = computed(() => unread.inquiries)
-// 首页和工作台共用顶栏及交易面板，切换时保持同一账号信息。
-const currentView = computed(() => route.path === '/' ? 'home' : 'dashboard')
+// 顶栏页签高亮：首页与工作台共用顶栏及交易面板，切换时保持同一账号信息；
+// 任务详情/编辑都归属于「我的任务」页签。
+const currentView = computed(() => {
+  if (route.path === '/demand' || route.path.startsWith('/demand/')) return 'demand'
+  return route.path === '/' ? 'home' : 'dashboard'
+})
+// 未登录时按目标页签给出对应文案，别拿「采购工作台」去问要不要发布任务。
+const viewFeature = { '/': '发现好故事', '/dashboard': '采购工作台', '/demand': '任务发布' }
 // 切换顶级页签先收起所有浮层，再跳路由；已在当前页签时只收起浮层（与原来 brand 点击行为一致）。
 async function goView(path) {
-  if (path !== '/' && !await requireLogin(router, '采购工作台', path)) return
+  if (path !== '/' && !await requireLogin(router, viewFeature[path] || '采购工作台', path)) return
   closeAll()
   if (route.path !== path) router.push(path)
 }
@@ -192,8 +199,16 @@ function openCopyright() { tradeOpen.value = false; sealOpen.value = false; copy
 function openSeal() { tradeOpen.value = false; copyrightOpen.value = false; sealOpen.value = true }
 function clearTradeFocus() { tradeFocusTab.value = ''; tradeFocusId.value = '' }
 // 通知跳转：messageOpen 关闭后带着目标 Tab 与业务主键打开 Cooperation，由其定位到具体记录。
+// 任务域通知例外：任务页签是顶级路由，审核通过/驳回通知直接跳 /demand/{demandId} 详情看审核意见，不开交易抽屉。
 function openTradeFrom(payload) {
   messageOpen.value = false
+  if (payload?.demand) {
+    // 换页面前收掉同层浮层，否则抽屉会盖在任务详情上
+    tradeOpen.value = false; copyrightOpen.value = false; sealOpen.value = false
+    const id = payload.bizId != null && payload.bizId !== '' ? encodeURIComponent(String(payload.bizId)) : ''
+    router.push(id ? `/demand/${id}` : '/demand/published')
+    return
+  }
   const tab = payload?.tab || 'inquiry'
   if (payload?.bizId != null && payload.bizId !== '') { tradeFocusTab.value = tab; tradeFocusId.value = String(payload.bizId) }
   else { tradeFocusTab.value = ''; tradeFocusId.value = '' }

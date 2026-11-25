@@ -1,6 +1,6 @@
 # 剧云策 PC 企业端
 
-> **任务大厅已下线（2026-11-13）**：任务发布、逐轮验收、延时审批与关闭征集全部收归管理端 `smart-script-web`（`/api/v1/admin/trade/demand`），资金托管与创作者押金环节同时下线——平台在线下与需求方商定并收款后代为发布。本端随之移除「任务广场」顶级页签、`src/views/demand/**`、`src/components/demand/**`、`src/utils/demand.js` 与 `src/api/enterprise.js` 的任务接口封装；后端旧的用户侧发布链路（`POST/PUT /api/v1/trade/demand/**`、`/pay/escrow*`、`/pay/deposit*`）为硬下线。
+> **买方发布链路已恢复（2026-11 规则调整）**：需求方在本端顶级页签「我的任务」`/demand` 填写发布表单，任务落到 `pending_review`（此时不进任务广场、不可被接单），由平台运营在管理端 `smart-script-web`（`/api/v1/admin/trade/demand`）审核：通过转 `open` 并对外曝光，驳回带书面意见转 `rejected`，需求方改后重新提交即回到 `pending_review`。逐轮验收、延时审批与关闭征集**全部收归管理端**，本端不提供这些动作；资金托管与创作者押金环节保持下线（后端 `/pay/escrow*`、`/pay/deposit*` 为硬下线，旧用户侧 `POST/PUT /api/v1/trade/demand/**` 已恢复为买方入口）。本端承载 `src/views/demand/**`（我发布的 / 发布与编辑 / 详情）、`src/components/demand/**`、`src/utils/demand.js` 与 `src/api/enterprise.js` 的 demand 封装；广场浏览页 `Square.vue` 不恢复，`/demand` 默认落到「我发布的任务」。最后一轮验收通过后（需求 `completed`），需求方可在详情页查看末轮交付的最终作品。
 >
 > 本端仍是个人版权采购的 PC 入口：采购工作台、询盘 / 会话 / 合同 / 订单、版权证书与印章均未改动，`/enterprise/` 部署不变。
 

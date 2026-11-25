@@ -150,7 +150,7 @@
         <div v-if="orderTotal > PAGE_SIZE" class="pagination-bar"><button class="btn sm ghost" :disabled="orderPageNum <= 1" @click="orderPageNum--; loadOrders()">上一页</button><span class="cost">第 {{ orderPageNum }} 页 / 共 {{ Math.ceil(orderTotal / PAGE_SIZE) }} 页</span><button class="btn sm ghost" :disabled="orderPageNum * PAGE_SIZE >= orderTotal" @click="orderPageNum++; loadOrders()">下一页</button></div>
       </template>
 
-      <!-- 任务域已从本端下线：发布与逐轮验收收归管理端，这里不再挂任务相关分区 -->
+      <!-- 任务发布与审核在顶级页签 /demand（我发布的/发布与编辑/详情），逐轮验收在管理端，本抽屉不挂任务分区 -->
     </div>
     <PortalLayer v-model="orderContractVisible" :title="orderContractTitle" modal big>
       <div v-loading="orderContractLoading" class="preview-wrap">
@@ -816,7 +816,7 @@ async function applyFocus() {
   }
 }
 watch(() => [props.modelValue, props.focusTab, props.focusId], applyFocus)
-// 任务域已整段下线：本抽屉只承担询盘 / 会话 / 合同 / 订单四类买方交易链路。
+// 本抽屉只承担询盘 / 会话 / 合同 / 订单四类买方交易链路；任务域在顶级页签 /demand，审核与验收在管理端。
 </script>
 <style scoped>
 /* ── 会话列表 ── */

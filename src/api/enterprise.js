@@ -166,9 +166,50 @@ export const phoneChange = (step, body) => data('/api/v1/users/me/phone/change/'
 export const listFeedback = async () => asList(await data('/api/v1/feedback'))
 export const sendFeedback = form => data('/api/v1/feedback', { method: 'POST', body: { category: form.category, content: form.content, attachmentRef: form.attachmentRef } })
 
-/* ---------------- 任务广场（需求悬赏）已退役 ---------------- */
-// 任务发布、逐轮验收、延时审批与关闭征集全部收归管理端 /api/v1/admin/trade/demand，
-// 托管与押金资金环节同时下线；本端不再保留任何 demand 接口封装。
+/* ---------------- 任务域（需求悬赏）：企业端=需求方（买方），只发布 / 改 / 看审核结果，不验收 ---------------- */
+// 后端：AppTradeDemandController。买方动作只有「填表提交 → 平台审核 → 审核通过后进入任务广场」，
+// 逐轮验收、延时审批、关闭征集已收归管理端 /api/v1/admin/trade/demand；
+// 托管与押金资金环节（pay/escrow*、dev-pass、deposit*）随后端硬下线，本端不再封装，也不得复活。
+//
+// 金额口径（以控制器实测为准，混用单位是这个域的历史包袱，改之前先读注释）：
+//   入参 budget = 分；stages[].amount = 元（parseStages 原样入库，不做换算）；
+//   出参 budget / stages[].amount = 分（控制器在返回前统一 元→分）。
+const demandBase = '/api/v1/trade/demand'
+const demandPath = demandId => demandBase + '/' + id(demandId)
+const stagePath = (demandId, stageId) => `${demandPath(demandId)}/stage/${id(stageId)}`
+// 我发布的任务：mine=published 走 clientId 过滤，这一分支才接受 status，且返回审核态全量
+// （pending_review / rejected 也在这里，绝不能在外层再按 open 过滤掉，否则买方看不到驳回单）。
+// mine 固定写死在本函数内，与 listInquiries/listOrders 的 role:'buyer' 同口径，避免调用方翻成别人的视角。
+export async function listMyDemands({ status, genreId, taskType, keyword, sortBy, order, pageNum = 1, pageSize = 20 } = {}) {
+  const result = await data(demandBase + '/list?' + qs({
+    mine: 'published', status, genreId, taskType, keyword, sortBy, order, pageNum, pageSize
+  }))
+  return { total: Number(result?.total || 0), list: asList(result) }
+}
+// 详情：pending_review / rejected / 已过征集截止的 open 单只对当事人（需求方或接单创作者）开放，
+// 其他人拿到 404；被驳回时出参带 auditRemark（审核意见）与 auditAt（审核时间）。
+export const getDemand = demandId => data(demandPath(demandId))
+// 发布：建单后 status=pending_review，不进任务广场。totalEpisodes 必填，缺失后端 400「请填写总集数」。
+export const createDemand = form => data(demandBase, { method: 'POST', body: form })
+// 编辑：仅需求方本人、且状态为 pending_review 或 rejected 时放行；改 rejected 单自动重新提交审核并清空审核意见。
+// 已审核通过（open）的单后端 400「任务已通过审核，如需调整请联系平台客服」，本端不再前置隐藏，按后端文案提示。
+export const updateDemand = (demandId, form) => data(demandPath(demandId), { method: 'PUT', body: form })
+// 轮次进度（只读）：出参 amount 为分；非当事人只能拿到剥离交付字段的时间表。
+export const demandStages = demandId => data(demandPath(demandId) + '/stages')
+// 交付作品：买方只在「需求已完成（completed）+ 最后一轮 + 该轮已通过」时拿得到，
+// 其余情形后端 400 给出口径文案（任务尚未完成验收 / 仅可查看最后一轮 / 最后一轮尚未验收通过），
+// 页面必须原样展示这条 msg，不要替换成通用报错，否则用户不知道自己差在哪一步。
+export const deliverableWork = (demandId, stageId) => data(stagePath(demandId, stageId) + '/deliverable-work')
+// 发布分镜任务时的源剧本候选：本人未删除作品（不排除已上架，源剧本仅作参考）
+export const sourceWorks = async () => asList(await data(demandBase + '/source-works'))
+// 源剧本文件上传：走交易域端点（买方无创作者资格时 content/upload 会被拒），返回 { url(相对路径), fileName }
+export const uploadSourceScript = file => {
+  const form = new FormData()
+  form.append('file', file, file.name || 'script.txt')
+  return data(demandBase + '/upload-script', { method: 'POST', body: form })
+}
+// 查看源剧本：{ work?, chapters?, fileUrl?, fileName? }，接单前评估用，买方详情里复核
+export const sourceScript = demandId => data(demandPath(demandId) + '/source-script')
 
 
 // 与 App 使用同一询盘入口；身份及卖方由服务端确定。
