@@ -1,6 +1,6 @@
 # 剧云策 PC 企业端
 
-> **任务大厅已下线（2026-11-13）**：任务发布、逐轮验收、延时审批与关闭征集全部收归管理端 `smart-script-web`（`/api/v1/admin/trade/demand`），资金托管与创作者押金环节同时下线——平台在线下与需求方商定并收款后代为发布。本端随之移除「任务广场」顶级页签、`src/views/demand/**`、`src/components/demand/**`、`src/utils/demand.js` 与 `src/api/enterprise.js` 的任务接口封装；后端旧的用户侧发布链路（`POST/PUT /api/v1/trade/demand/**`、`/pay/escrow*`、`/pay/deposit*`）为硬下线。
+> **买方发布链路已恢复（2026-11 规则调整）**：需求方在本端顶级页签「我的任务」`/demand` 填写发布表单，任务落到 `pending_review`（此时不进任务广场、不可被接单），由平台运营在管理端 `smart-script-web`（`/api/v1/admin/trade/demand`）审核：通过转 `open` 并对外曝光，驳回带书面意见转 `rejected`，需求方改后重新提交即回到 `pending_review`。逐轮验收、延时审批与关闭征集**全部收归管理端**，本端不提供这些动作；资金托管与创作者押金环节保持下线（后端 `/pay/escrow*`、`/pay/deposit*` 为硬下线，旧用户侧 `POST/PUT /api/v1/trade/demand/**` 已恢复为买方入口）。本端承载 `src/views/demand/**`（我发布的 / 发布与编辑 / 详情）、`src/components/demand/**`、`src/utils/demand.js` 与 `src/api/enterprise.js` 的 demand 封装；广场浏览页 `Square.vue` 不恢复，`/demand` 默认落到「我发布的任务」。最后一轮验收通过后（需求 `completed`），需求方可在详情页查看末轮交付的最终作品。
 >
 > 本端仍是个人版权采购的 PC 入口：采购工作台、询盘 / 会话 / 合同 / 订单、版权证书与印章均未改动，`/enterprise/` 部署不变。
 
@@ -43,7 +43,7 @@ npm run gate
 
 ## 部署
 
-npm run build 输出 dist，固定挂载到 `/enterprise/`，对应服务器 http://124.221.131.38/enterprise/。Vite 资源前缀和 Vue Router history 使用同一基础路径；例如 `/enterprise/login`、`/enterprise/session`。将 dist 内容部署到企业端目录，`/enterprise/*` 的 SPA 路由必须回退到该目录的 index.html。
+npm run build 输出 dist，固定挂载到 `/enterprise/`，对应服务器 http://192.168.100.3:1100/enterprise/。Vite 资源前缀和 Vue Router history 使用同一基础路径；例如 `/enterprise/login`、`/enterprise/session`。将 dist 内容部署到企业端目录，`/enterprise/*` 的 SPA 路由必须回退到该目录的 index.html。
 
 生产默认 VITE_APP_BASE_API=/prod-api；网关需将站点根路径 /prod-api/* 去除前缀后转发至整体后端。接口地址不加 `/enterprise/`，例如 `/prod-api/api/v1/auth/login`。不要把 `/enterprise/login` SPA 地址代理到后端。
 管理员端位于 `/`，用户端位于 `/user/`。下述回跳地址是应用内部路径，由 Router 自动添加 `/enterprise/` 前缀，不能手工重复添加。当前版本的回跳白名单包含 /session、/session-check、/dashboard；新增主体路由时同步扩展。

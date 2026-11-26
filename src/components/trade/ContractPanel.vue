@@ -31,7 +31,7 @@
             <button v-if="isEditable(c)" class="btn sm ghost" :disabled="uploading" @click="onUploadClick(c)">{{ c.sourceType === 'uploaded' ? '重新上传' : '上传合同' }}</button>
             <button v-if="c.sourceType === 'uploaded' && isEditable(c)" class="btn sm ghost" :disabled="uploading" @click="onSwitchClick(c)">切回模板</button>
             <button v-if="canSign(c)" class="btn sm" @click="openSign(c)">签署合同</button>
-            <a v-if="(c.status === 'completed' || c.status === 'archived') && c.signedPdfUrl" class="btn sm ghost" :href="mediaUrl(c.signedPdfUrl)" target="_blank" rel="noopener">下载 PDF</a>
+            <button v-if="(c.status === 'completed' || c.status === 'archived') && c.signedPdfUrl" class="btn sm ghost" @click="downloadSignedPdf(c)">下载 PDF</button>
           </div>
         </div>
       </div>
@@ -44,6 +44,7 @@
 
     <PortalLayer v-model="previewVisible" :title="previewTitle" modal big>
       <div v-loading="previewLoading" class="preview-wrap">
+        <p v-if="previewMissing" class="preview-warning">{{ previewMissing }} 张签章/合同图片在服务器上已经取不到（历史文件未随存储迁移，不是链接过期），其余内容照常显示。</p>
         <div v-if="previewSource === 'uploaded' && previewPages.length" class="preview-pages">
           <img v-for="(p, i) in previewPages" :key="i" class="preview-page" :src="mediaUrl(p)" alt="" />
         </div>
@@ -102,7 +103,7 @@ import LoadState from '../LoadState.vue'
 import ContractSignDialog from './ContractSignDialog.vue'
 import ContractEditor from './ContractEditor.vue'
 import { usePortal } from '../../utils/portal.js'
-import { contractMoney, licenseLabel, mediaUrl, avatarUrl, contractHtml, asList } from '../../utils/enterprise.js'
+import { contractMoney, licenseLabel, mediaUrl, avatarUrl, contractHtml, asList, downloadProfileFile, countUnreachableContractImages } from '../../utils/enterprise.js'
 import { contractDocumentText } from '../../utils/contractDocument.js'
 
 const props = defineProps({ userId: Number })
@@ -127,6 +128,7 @@ const signingContract = ref(null)
 
 const previewSource = ref('template')
 const previewPages = ref([])
+const previewMissing = ref(0)
 const uploadInputRef = ref(null)
 const uploadTargetId = ref(0)
 const uploading = ref(false)
@@ -150,6 +152,15 @@ const signedText = v => (isSigned(v) ? '已签' : '未签')
 const signedClass = v => (isSigned(v) ? 'sign-done' : 'sign-todo')
 // 封面历史数据绝对与相对混存，统一经 avatarUrl 归一到当前 API 前缀
 const coverUrl = raw => avatarUrl(raw) || raw
+
+/** 下载已签署 PDF：带签名地址只用来取字节流，不当新页面打开（见 downloadProfileFile）。 */
+async function downloadSignedPdf(c) {
+  try {
+    await downloadProfileFile(c.signedPdfUrl, `合同_${c.contractNo || c.contractId}.pdf`)
+  } catch (e) {
+    ElMessage.error(e.message || '合同下载失败')
+  }
+}
 
 /** 我可签署：仅 pending/partial_signed 且我这一侧（买方）未签。 */
 function canSign(c) {
@@ -181,6 +192,7 @@ async function openPreview(c) {
   previewContent.value = ''
   previewSource.value = 'template'
   previewPages.value = []
+  previewMissing.value = 0
   previewVisible.value = true
   previewLoading.value = true
   try {
@@ -188,6 +200,7 @@ async function openPreview(c) {
     previewSource.value = detail?.sourceType || 'template'
     previewPages.value = Array.isArray(detail?.pageImageUrls) ? detail.pageImageUrls : []
     previewContent.value = contractHtml(detail?.content)
+    previewMissing.value = await countUnreachableContractImages(detail?.content, previewPages.value)
   } catch (e) {
     await handleError(e)
   } finally {
@@ -379,6 +392,7 @@ async function focusContract(contractId) {
 .foot-actions { display: flex; gap: 8px; align-items: center }
 .foot-actions a { text-decoration: none }
 .preview-wrap { min-height: 200px }
+.preview-warning { margin: 0 0 8px; font-size: 12px; color: #b45309 }
 .contract-frame { width: 100%; height: min(68vh, 720px); border: 0; display: block; background: #fff }
 .preview-pages { display: flex; flex-direction: column; gap: 8px; max-height: min(68vh, 720px); overflow-y: auto }
 .preview-page { width: 100%; display: block; border: 1px solid #ebeef5; border-radius: 4px }

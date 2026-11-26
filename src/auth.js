@@ -8,14 +8,16 @@ export function isAuthFailure(error) {
   return error?.status === 401 || [401, 40100, 40301].includes(error?.code)
 }
 // 已实现的主体路由白名单，新增页面必须同步登记（README 的回跳约定）。
-// 主体页面只剩采购工作台；任务发布与买方动作已收归管理端，本端不再有任务路由。
-const IMPLEMENTED = ['/session', '/session-check', '/dashboard']
+// 采购工作台 + 任务域（需求方发布侧）是两块主体页面，其余入口仍是浮层。
+const IMPLEMENTED = ['/', '/session', '/session-check', '/dashboard', '/demand', '/demand/published', '/demand/create']
+// 任务详情 /demand/123 与编辑 /demand/123/edit 是动态段，精确匹配命中不了，单独放行
+const IMPLEMENTED_PATTERN = /^\/demand\/\d+(\/edit)?$/
 export function safeRedirect(raw) {
   if (typeof raw !== 'string' || raw.includes('\\')) return '/session'
   try {
     const url = new URL(raw, 'https://portal.invalid')
     if (!raw.startsWith('/') || raw.startsWith('//') || url.origin !== 'https://portal.invalid') return '/session'
-    return IMPLEMENTED.includes(url.pathname) ? url.pathname + url.search + url.hash : '/session'
+    return IMPLEMENTED.includes(url.pathname) || IMPLEMENTED_PATTERN.test(url.pathname) ? url.pathname + url.search + url.hash : '/session'
   } catch { return '/session' }
 }
 export function assertUser(user) {
@@ -66,6 +68,46 @@ export async function getAgreements() {
   const list = Array.isArray(result.agreements) ? result.agreements : Array.isArray(result.data?.agreements) ? result.data.agreements : []
   if (list.length < 2) throw new Error('协议加载失败，请稍后重试')
   return list
+}
+
+// ---- 扫码登录：PC 出码 → App 扫码确认 → PC 轮询取令牌 ----
+// 令牌只由服务端在轮询命中「已确认」时签发一次，前端不参与任何凭证拼接。
+//
+// 后端这几个接口用的是若依 AjaxResult 信封（字段在 data 里，成功时 code=200），
+// 与登录接口把 token 摊在顶层的写法不同，这里统一解包一次：
+// 直接读 result.qrToken 会拿到 undefined，二维码里就只剩 t=undefined。
+
+/** 取 200 响应里的 data；同时兼容顶层字段（以后接口改成顶层时不必再改调用方）。 */
+function qrPayload(result, field) {
+  return (result?.data && result.data[field] !== undefined ? result.data : result) || {}
+}
+
+/** 出码。portal 决定服务端准入口径：创作者端要求作者能力，企业端不要求。 */
+export async function createQrLogin() {
+  const result = await request('/api/v1/auth/qr/create', { method: 'POST', authenticated: false, body: { portal: 'enterprise' } })
+  const data = qrPayload(result, 'qrToken')
+  if (typeof data.qrToken !== 'string' || !data.qrToken) throw new Error('二维码生成失败，请刷新后重试')
+  return data
+}
+
+/** 轮询票据状态；票据被 App 确认后，同一次响应里带回 token 与 user。 */
+export async function pollQrLogin(qrToken) {
+  const result = await request('/api/v1/auth/qr/poll', { method: 'POST', authenticated: false, body: { qrToken } })
+  return qrPayload(result, 'status')
+}
+
+/** 拒绝一次已被扫的票据（抢扫防护）：令牌只在出码方浏览器里，无需登录身份。 */
+export function abortQrLogin(qrToken) {
+  return request('/api/v1/auth/qr/abort', { method: 'POST', authenticated: false, body: { qrToken } })
+}
+
+/** 扫码登录成功后的落地：与密码登录同一套校验（账号域）。 */
+export function acceptQrLogin(result) {
+  assertUser(result.user)
+  if (typeof result.token !== 'string' || !result.token) throw new Error('登录失败，请稍后重试')
+  clearSession()
+  localStorage.setItem(portal.tokenKey, result.token)
+  return result.user
 }
 
 /** 发送短信验证码，scene 取 LOGIN / REGISTER / RESET_PASSWORD。返回 cooldownSeconds 供倒计时使用。 */

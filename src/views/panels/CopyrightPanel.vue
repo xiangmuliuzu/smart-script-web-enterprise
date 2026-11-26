@@ -1,76 +1,91 @@
 <template>
-  <div class="copyright-panel">
-    <div class="filter-bar">
-      <input v-model="keyword" class="filter-input" placeholder="搜索作品名 / 卖家 / 材料名称" @keyup.enter="reload">
-    </div>
-    <LoadState :pending="pending" :error="error" :retry="load" />
-    <div v-if="!pending && !error && !rows.length" class="load-state">
-      <p>暂无版权材料</p>
-      <p class="cost empty-hint">仅展示确认收货后、且卖家交割时上传了版权证书的记录</p>
-    </div>
-    <div v-for="item in rows" :key="item.fileId" class="copyright-card">
-      <div class="copyright-cover">
-        <img v-if="item.workCover" :src="coverUrl(item.workCover)" alt="" />
-        <span v-else class="glyph">{{ (item.workTitle || '版').slice(0, 1) }}</span>
-      </div>
-      <div class="copyright-body">
-        <div class="copyright-top">
-          <b>《{{ item.workTitle || '作品' }}》</b>
-          <span class="mine-role cost">我是买方</span>
+  <div class="copyright-shell">
+    <PortalTabs v-model="tab" :items="tabs" drawer label="版权分类" />
+    <div class="copyright-tab-body">
+      <DeliveryPanel v-if="tab === 'delivery'" ref="deliveryRef" />
+      <div v-else class="copyright-panel">
+        <div class="filter-bar">
+          <input v-model="keyword" class="filter-input" placeholder="搜索作品名 / 卖家 / 材料名称" @keyup.enter="reload">
         </div>
-        <p class="copyright-meta">卖家：{{ item.sellerName || '-' }}</p>
-        <p class="copyright-meta">交割时间：{{ item.deliveryTime || '-' }}</p>
-        <p class="copyright-meta">
-          版权材料：
-          <button type="button" class="link-name" @click="openPreview(item)">{{ item.fileName || '未命名材料' }}</button>
-        </p>
-        <div class="copyright-foot">
-          <span class="cost">订单号：{{ item.orderNo || '#' + item.orderId }}</span>
-          <div class="foot-actions">
-            <button class="btn sm quiet" type="button" @click="openPreview(item)">查看详情</button>
-            <a class="btn sm ghost" :href="mediaUrl(item.fileUrl)" :download="item.fileName || 'copyright'" target="_blank" rel="noopener" @click="onDownloadClick(item, $event)">下载</a>
+        <LoadState :pending="pending" :error="error" :retry="load" />
+        <div v-if="!pending && !error && !rows.length" class="load-state">
+          <p>暂无版权材料</p>
+          <p class="cost empty-hint">仅展示确认收货后、且卖家交割时上传了版权证书的记录</p>
+        </div>
+        <div v-for="item in rows" :key="item.fileId" class="copyright-card">
+          <div class="copyright-cover">
+            <img v-if="item.workCover" :src="coverUrl(item.workCover)" alt="" />
+            <span v-else class="glyph">{{ (item.workTitle || '版').slice(0, 1) }}</span>
+          </div>
+          <div class="copyright-body">
+            <div class="copyright-top">
+              <b>《{{ item.workTitle || '作品' }}》</b>
+              <span class="mine-role cost">我是买方</span>
+            </div>
+            <p class="copyright-meta">卖家：{{ item.sellerName || '-' }}</p>
+            <p class="copyright-meta">交割时间：{{ item.deliveryTime || '-' }}</p>
+            <p class="copyright-meta">
+              版权材料：
+              <button type="button" class="link-name" @click="openPreview(item)">{{ item.fileName || '未命名材料' }}</button>
+            </p>
+            <div class="copyright-foot">
+              <span class="cost">订单号：{{ item.orderNo || '#' + item.orderId }}</span>
+              <div class="foot-actions">
+                <button class="btn sm quiet" type="button" @click="openPreview(item)">查看详情</button>
+                <a class="btn sm ghost" :href="mediaUrl(item.fileUrl)" :download="item.fileName || 'copyright'" target="_blank" rel="noopener" @click="onDownloadClick(item, $event)">下载</a>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-    <div v-if="total > PAGE_SIZE" class="pagination-bar">
-      <button class="btn sm ghost" type="button" :disabled="pageNum <= 1" @click="pageNum--; load()">上一页</button>
-      <span class="cost">第 {{ pageNum }} 页 / 共 {{ Math.ceil(total / PAGE_SIZE) }} 页</span>
-      <button class="btn sm ghost" type="button" :disabled="pageNum * PAGE_SIZE >= total" @click="pageNum++; load()">下一页</button>
-    </div>
+        <div v-if="total > PAGE_SIZE" class="pagination-bar">
+          <button class="btn sm ghost" type="button" :disabled="pageNum <= 1" @click="pageNum--; load()">上一页</button>
+          <span class="cost">第 {{ pageNum }} 页 / 共 {{ Math.ceil(total / PAGE_SIZE) }} 页</span>
+          <button class="btn sm ghost" type="button" :disabled="pageNum * PAGE_SIZE >= total" @click="pageNum++; load()">下一页</button>
+        </div>
 
-    <PortalLayer v-model="previewVisible" :title="previewTitle" modal big>
-      <div v-loading="previewLoading" class="preview-wrap">
-        <template v-if="previewItem">
-          <div class="preview-meta">
-            <p>作品：《{{ previewItem.workTitle || '-' }}》 · 卖家：{{ previewItem.sellerName || '-' }}</p>
-            <p>交割时间：{{ previewItem.deliveryTime || '-' }} · 材料：{{ previewItem.fileName || '-' }}</p>
+        <PortalLayer v-model="previewVisible" :title="previewTitle" modal big>
+          <div v-loading="previewLoading" class="preview-wrap">
+            <template v-if="previewItem">
+              <div class="preview-meta">
+                <p>作品：《{{ previewItem.workTitle || '-' }}》 · 卖家：{{ previewItem.sellerName || '-' }}</p>
+                <p>交割时间：{{ previewItem.deliveryTime || '-' }} · 材料：{{ previewItem.fileName || '-' }}</p>
+              </div>
+              <iframe v-if="previewKind === 'pdf'" class="preview-frame" :src="previewSrc" title="版权材料预览" />
+              <img v-else-if="previewKind === 'image'" class="preview-image" :src="previewSrc" :alt="previewItem.fileName || '版权材料'" />
+              <div v-else class="load-state">
+                <p>该文件类型暂不支持在线预览，请下载后查看</p>
+                <a class="btn sm brand" :href="previewSrc" :download="previewItem.fileName || 'copyright'" target="_blank" rel="noopener">下载到本地</a>
+              </div>
+              <div v-if="previewKind === 'pdf' || previewKind === 'image'" class="preview-actions">
+                <a class="btn sm ghost" :href="previewSrc" :download="previewItem.fileName || 'copyright'" target="_blank" rel="noopener">下载到本地</a>
+              </div>
+            </template>
+            <div v-else class="load-state"><p>{{ previewLoading ? '加载中…' : '版权内容不可用' }}</p></div>
           </div>
-          <iframe v-if="previewKind === 'pdf'" class="preview-frame" :src="previewSrc" title="版权材料预览" />
-          <img v-else-if="previewKind === 'image'" class="preview-image" :src="previewSrc" :alt="previewItem.fileName || '版权材料'" />
-          <div v-else class="load-state">
-            <p>该文件类型暂不支持在线预览，请下载后查看</p>
-            <a class="btn sm brand" :href="previewSrc" :download="previewItem.fileName || 'copyright'" target="_blank" rel="noopener">下载到本地</a>
-          </div>
-          <div v-if="previewKind === 'pdf' || previewKind === 'image'" class="preview-actions">
-            <a class="btn sm ghost" :href="previewSrc" :download="previewItem.fileName || 'copyright'" target="_blank" rel="noopener">下载到本地</a>
-          </div>
-        </template>
-        <div v-else class="load-state"><p>{{ previewLoading ? '加载中…' : '版权内容不可用' }}</p></div>
+        </PortalLayer>
       </div>
-    </PortalLayer>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import PortalLayer from '../../components/PortalLayer.vue'
+import PortalTabs from '../../components/PortalTabs.vue'
 import LoadState from '../../components/LoadState.vue'
+import DeliveryPanel from './DeliveryPanel.vue'
 import { usePortal } from '../../utils/portal.js'
 import { asList, avatarUrl, mediaUrl } from '../../utils/enterprise.js'
 
 const { api, handleError } = usePortal()
+
+const tabs = [
+  { value: 'delivery', label: '版权交割' },
+  { value: 'materials', label: '版权材料' }
+]
+const tab = ref('delivery')
+const deliveryRef = ref(null)
 
 const PAGE_SIZE = 10
 const rows = ref([])
@@ -119,6 +134,10 @@ watch(keyword, () => {
   keywordTimer = setTimeout(reload, 300)
 })
 
+watch(tab, value => {
+  if (value === 'materials' && !rows.value.length && !pending.value) load()
+})
+
 async function openPreview(item) {
   previewTitle.value = `版权详情 · ${item.fileName || '#' + item.fileId}`
   previewItem.value = null
@@ -146,11 +165,21 @@ function onDownloadClick(item, event) {
   }
 }
 
-onMounted(load)
-defineExpose({ refresh: load })
+defineExpose({
+  refresh() {
+    if (tab.value === 'delivery') deliveryRef.value?.refresh?.()
+    else load()
+  },
+  openDeliveryByOrder(orderId) {
+    tab.value = 'delivery'
+    return deliveryRef.value?.openByOrder?.(orderId)
+  }
+})
 </script>
 
 <style scoped>
+.copyright-shell { max-width: 100%; }
+.copyright-tab-body { padding-top: 12px; }
 .copyright-panel { max-width: 100%; }
 .filter-bar {
   display: flex;
